@@ -2,6 +2,7 @@
 #define __CORE_MEMORY_H__
 
 #include <core/utils.h>
+#include <core/types.h>
 #include <core/error_report.h>
 #include <core/cstd.h> /* memset, malloc, realloc, free */
 
@@ -11,6 +12,8 @@ enum mem_sizes {
     MB_SIZE     = 1 << 20,
     GB_SIZE     = 1 << 30,
 };
+
+#define WORD_SIZE sizeof(usz)
 
 #ifdef GNUC
 #define MEMORY_BARRIER() asm volatile ("" ::: "memory")
@@ -75,13 +78,23 @@ M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *dst, usz dst_cap, u
 M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *dst, usz dst_cap, usz ammount);
 
 struct m_array {
+    bool    dynamic;
     usz     cap;
     usz     count;
     usz     width;
     void    *data;
 };
 
+struct m_array_info {
+    usz     width;
+    usz     count;
+    usz     cap;
+    void    *base;
+};
+
 void m_array_init(struct m_array *array, usz width, usz init_size);
+/* assign an existing buffer to an array structure */
+void m_array_init_ext(struct m_array *array, const struct m_array_info info);
 void m_array_insert(struct m_array *array, usz index, void *element);
 void m_array_get(const struct m_array *arry, usz index, void *element);
 void m_array_append(struct m_array *array, void *element);

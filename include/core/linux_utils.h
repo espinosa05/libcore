@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <string.h>
 
+#define ALIGNED(a)     __attribute__((aligned(a)))
 #define UNLIKELY(c)     __builtin_expect(!!(c), true)
 #define LIKELY(c)       __builtin_expect(!!(c), false)
 

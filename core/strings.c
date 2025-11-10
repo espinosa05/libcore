@@ -47,7 +47,7 @@ void str_builder_to_cstr_alloc(const struct str_builder *sb, char **dst)
     *dst = base;
 }
 
-void str_builderDelete(const struct str_builder sb)
+void str_builder_delete(const struct str_builder sb)
 {
     m_free(sb.elements);
 }

@@ -1,5 +1,8 @@
 #include <core/wm.h>
-#include <core/os_vulkan.h>
+#include <core/wm_vulkan.h>
+#include <core/utils.h>
+#include <core/memory.h>
+
 /* static function declaration start */
 static b32 supported_window_resolution(const struct wm_window_info info);
 /* static function declaration end */
@@ -149,6 +152,21 @@ WM_Surface_Status wm_surface_create(struct wm_surface *surface, const struct wm_
     }
 
     return WM_SURFACE_STATUS_SUCCESS;
+}
+
+static const char *wm_status_str[] = {
+    ENUM_STR_ENTRY(WM_STATUS_SUCCESS),
+    ENUM_STR_ENTRY(WM_STATUS_COULDNT_START),
+    ENUM_STR_ENTRY(WM_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED),
+    ENUM_STR_ENTRY(WM_STATUS_UNKNOWN),
+};
+
+const char *wm_get_status_string(usz status)
+{
+    if (status >= WM_STATUS_COUNT)
+        status = WM_STATUS_UNKNOWN;
+
+    return wm_status_str[status];
 }
 
 static b32 supported_window_resolution(const struct wm_window_info info)

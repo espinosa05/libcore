@@ -1,9 +1,7 @@
 #include <core/cli.h>
 #include <core/log.h>
 #include <core/utils.h>
-
-#include <core/cstd.h>
-#include <string.h>
+#include <core/strings.h>
 
 /* static function declaration start */
 static struct cli_opt load_long_opt(const char *arg, const struct cli_opt opts[], usz count);
@@ -23,12 +21,6 @@ struct cli_opt_result cli_getopt(const struct cli_opt opt_arr[], usz n_opts, usz
 
     res.err_code = OPT_NO_ERR;
     n_opts -= CLI_OPT_NULL_ENTRY; /* we will always ignore the last entry */
-
-    if (counter == 0) /* skip argv[0] */
-        counter = 1;
-
-    ASSERT_RT(args.c >= counter,
-              "index not inside argument range! (%d)", counter);
 
     res.opt_ind = counter;
     arg = args.v[counter];
@@ -94,7 +86,7 @@ static struct cli_opt load_long_opt(const char *arg, const struct cli_opt opts[]
     arg += LONG_ARG_OFFSET;
 
     for (usz i = 0; i < count; ++i) {
-        if (0 == strcmp(opts[i].long_opt, arg)) {
+        if (cstr_compare(opts[i].long_opt, arg)) {
             ret = opts[i];
             break;
         }

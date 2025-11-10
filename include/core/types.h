@@ -59,6 +59,21 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 #define U64_X_FMT   "%016"PRIx64
 #define USZ_X_FMT   "%llx" /* special case without leading 0 */
 
+#define SZ_N_FMT(n)     "%"#n PRIi64   /* weird and hardcoded */
+#define USZ_N_FMT(n)    "%"#n PRIu64   /* applies to this aswell */
+
+#define PTR_N_FMT(n)    "%"#n PRIuPTR
+
+#define U8_N_FMT(n)     "%"#n PRIu8
+#define U16_N_FMT(n)    "%"#n PRIu16
+#define U32_N_FMT(n)    "%"#n PRIu32
+#define U64_N_FMT(n)    "%"#n PRIu64
+
+#define S8_N_FMT(n)     "%"#n PRIi8
+#define S16_N_FMT(n)    "%"#n PRIi16
+#define S32_N_FMT(n)    "%"#n PRIi32
+#define S64_N_FMT(n)    "%"#n PRIi64
+
 #define STR_FMT     "%s"
 
 #endif /* __TYPES_H__ */

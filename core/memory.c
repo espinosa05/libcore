@@ -58,18 +58,30 @@ M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *dst, usz dst_cap, 
     return M_BUFFER_STATUS_SUCCESS;
 }
 
-void m_arrayInit(struct m_array *array, usz width, usz init_size)
+void m_array_init(struct m_array *array, usz width, usz init_size)
 {
     array->data     = m_alloc(width, init_size);
     array->width    = width;
     array->count    = 0;
     array->cap      = init_size;
+    array->dynamic  = TRUE;
+}
+
+void m_array_init_ext(struct m_array *array, const struct m_array_info info)
+{
+    array->data     = info.base;
+    array->width    = info.width;
+    array->count    = info.count;
+    array->cap      = info.cap;
+    array->dynamic  = FALSE;
 }
 
 void m_array_insert(struct m_array *array, usz index, void *element)
 {
-    if (index > array->cap)
+    if (index > array->cap) {
+        ASSERT_RT(array->dynamic, "static array ran out of memory");
         array->data = m_realloc(array->data, array->width, index + 1);
+    }
 
     if (index > array->count)
         array->count = index;

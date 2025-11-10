@@ -66,6 +66,15 @@
         (a) ^= (b);         \
     MACRO_END
 
+#define ASSERT_EQ(a, b)                                         \
+    MACRO_START                                                 \
+        if ((a) != (b)) {                                       \
+            F_LOG_T(OS_STDERR, "ASSERT_EQ", ANSI_COLOR_RED,     \
+                    "values '"#a"' and '"#b"' don't match!");   \
+            ABORT();                                            \
+        }                                                       \
+    MACRO_END
+
 #define ASSERT_RT(a, ...)                                                   \
     MACRO_START                                                             \
         if (UNLIKELY(!(a))) {                                               \

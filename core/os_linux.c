@@ -3,7 +3,6 @@
 #include <core/os_streams.h>
 #include <core/os_file.h>
 #include <core/os_socket.h>
-#include <core/os_vulkan.h>
 
 #include <core/utils.h>
 #include <core/strings.h>
@@ -390,7 +389,7 @@ OS_Socket_Status os_socket_get_sockobj(const struct os_socket *sock, sz sock_opt
     return os_socket_errno_code_to_status(st, SOCK_FN_GETSOCKOPT, errno);
 }
 
-OS_Socket_Status os_socket_tcp_socket(struct os_socket *sock, const struct os_socket_tcp_info info)
+OS_Socket_Status os_socket_create_tcp_socket(struct os_socket *sock, const struct os_socket_tcp_info info)
 {
     CHECK_NULL(info.net_addr);
 

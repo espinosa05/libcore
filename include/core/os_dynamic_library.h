@@ -14,7 +14,7 @@ struct os_library {
 };
 #else
 #   error "not supported"
-#endif /**/
+#endif /* CORE_PLATFORM_LINUX */
 
 struct os_library_info {
     char *path;

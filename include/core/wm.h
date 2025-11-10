@@ -53,4 +53,5 @@ void wm_window_hide(struct wm *wm, struct wm_window *win);
 void wm_window_change_title(struct wm *wm, struct wm_window *win, const char *title);
 WM_Status wm_window_close(struct wm *wm, struct wm_window *win);
 
+const char *wm_get_status_string(usz status);
 #endif /* __CORE_WM_H__ */
