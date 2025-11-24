@@ -15,12 +15,19 @@ struct str_builder {
     char    **elements;
     usz     count;
     usz     cap;
+    b32     external;
 };
+enum str_builder_status_codes {
+    STR_BUILDER_STATUS_SUCCESS = 0,
+    STR_BUILDER_STATUS_EXHAUSTED,
+};
+typedef usz Str_Builder_Status;
 
 void str_builder_init(struct str_builder *sb, usz init_cap);
-void str_builder_append(struct str_builder *sb, char *str);
+Str_Builder_Status str_builder_append(struct str_builder *sb, char *str);
 void str_builder_to_cstr_alloc(const struct str_builder *sb, char **dst);
 void str_builder_delete(const struct str_builder sb);
+void str_builder_init_ext(struct str_builder *sb, char *buff, usz size);
 
 #define STR_NL  "\n"
 #define STR_TAB "\t"

@@ -4,7 +4,7 @@
 #include <core/types.h>
 #include <core/error_report.h>
 
-enum {
+enum opt_status_codes {
     OPT_NO_ERR = 0,
     OPT_ERR_INVALID_OPT,
     OPT_ERR_EXPECTED_SUBOPT,

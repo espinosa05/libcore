@@ -20,7 +20,10 @@ static OS_Stream_Status open_file_stream(struct os_stream *stream, const struct 
 static OS_Stream_Status open_tcp_socket_stream(struct os_stream *stream, const struct os_socket_tcp_info info);
 static OS_Stream_Status open_ipc_socket_stream(struct os_stream *stream, const struct os_socket_ipc_info info);
 static OS_Socket_Status os_socket_errno_code_to_status(sz status_code, usz socket_function, usz errno_val);
-static void os_file_init_proc_io_handles(void) __FUNC_ATTR_CONSTRUCTOR__;
+static void os_file_init_proc_io_handles(void);
+static void set_coredumps(void);
+static void reset_coredumps(void) __FUNC_ATTR_DESTRUCTOR__;
+static void platform_init() __FUNC_ATTR_CONSTRUCTOR__;
 /* static function declaration end */
 
 /* global data start */
@@ -31,6 +34,8 @@ struct os_file *OS_STDERR;
 static struct os_file __OS_StdIn;
 static struct os_file __OS_StdOut;
 static struct os_file __OS_StdErr;
+
+static struct rlimit initial_coredump_count = {0};
 /* global data end */
 
 void os_open_library(struct os_library *lib, const struct os_library_info info)
@@ -261,17 +266,6 @@ OS_Stream_Status os_stream_printf(struct os_stream *stream, const char *fmt, ...
     return OS_STREAM_STATUS_SUCCESS;
 }
 
-enum { OS_LINUX_STDIN = STDIN_FILENO, OS_LINUX_STDOUT = STDOUT_FILENO, OS_LINUX_STDERR = STDERR_FILENO, };
-static void os_file_init_proc_io_handles(void)
-{
-    __OS_StdIn  = (struct os_file) { .handle = OS_LINUX_STDIN };
-    __OS_StdOut = (struct os_file) { .handle = OS_LINUX_STDOUT };
-    __OS_StdErr = (struct os_file) { .handle = OS_LINUX_STDERR };
-
-    OS_STDIN    = &__OS_StdIn;
-    OS_STDOUT   = &__OS_StdOut;
-    OS_STDERR   = &__OS_StdErr;
-}
 
 void os_file_open(struct os_file *f, const struct os_file_info info)
 {
@@ -293,14 +287,14 @@ void os_file_read(const struct os_file *f, void *buffer, const usz buffer_size, 
     TODO("error handling");
     ASSERT(bytes <= buffer_size, "out of bounds read!");
     sz st = read(f->handle, buffer, bytes);
-    ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "read syscall failed!");
+    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "read syscall failed!");
 }
 
 void os_file_write(const struct os_file *f, const void *buffer, const usz buffer_size, const usz bytes)
 {
     ASSERT(bytes <= buffer_size, "out of bounds write!");
     sz st = write(f->handle, buffer, bytes);
-    ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall write failed!");
+    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall write failed!");
 }
 
 void os_file_printf(const struct os_file *f, const char *fmt, ...)
@@ -319,7 +313,7 @@ void os_file_close(struct os_file *f)
 {
     TODO("error handling");
     sz st = close(f->handle);
-    ASSERT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall close failed!");
+    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall close failed!");
     f->handle = OS_FILE_INVALID;
 }
 
@@ -497,6 +491,7 @@ OS_Socket_Status os_socket_send_data(const struct os_socket *sock, char *buffer,
     return os_socket_errno_code_to_status(st, SOCK_FN_SEND, errno);
 }
 
+
 /* big ugly function... don't blame me. Blame horrily outdated POSIX errors */
 static OS_Socket_Status os_socket_errno_code_to_status(sz status_code, usz socket_function, usz errno_val)
 {
@@ -593,8 +588,7 @@ static OS_Socket_Status os_socket_errno_code_to_status(sz status_code, usz socke
         switch (errno_val) {
         case EBADF: return OS_SOCKET_STATUS_INVALID_SOCKET;
         case EINTR: return OS_SOCKET_STATUS_CLOSE_GOT_INTERRUPTED_BY_OS;
-        case EIO: TODO("check if EIO makes sense upon closing socket!");
-                  return OS_SOCKET_STATUS_INPUT_OUTPUT_ERROR;
+        case EIO: return OS_SOCKET_STATUS_INPUT_OUTPUT_ERROR;
         }
         UNREACHABLE();
     case SOCK_FN_GETSOCKOPT:
@@ -660,7 +654,6 @@ char *os_socket_string_status(usz code)
     return g_os_socket_status_code_strings[code];
 }
 
-
 static OS_Stream_Status open_file_stream(struct os_stream *stream, const struct os_file_info info)
 {
     os_file_open(&stream->raw.file, info);
@@ -677,4 +670,37 @@ static OS_Stream_Status open_ipc_socket_stream(struct os_stream *stream, const s
 {
     os_socket_create_ipc_socket(&stream->raw.socket, info);
     return OS_STREAM_STATUS_SUCCESS;
+}
+
+static void platform_init()
+{
+    os_file_init_proc_io_handles();
+    set_coredumps();
+}
+
+enum linux_default_io_fds { OS_LINUX_STDIN = STDIN_FILENO, OS_LINUX_STDOUT = STDOUT_FILENO, OS_LINUX_STDERR = STDERR_FILENO, };
+static void os_file_init_proc_io_handles(void)
+{
+    __OS_StdIn  = (struct os_file) { .handle = OS_LINUX_STDIN };
+    __OS_StdOut = (struct os_file) { .handle = OS_LINUX_STDOUT };
+    __OS_StdErr = (struct os_file) { .handle = OS_LINUX_STDERR };
+
+    OS_STDIN    = &__OS_StdIn;
+    OS_STDOUT   = &__OS_StdOut;
+    OS_STDERR   = &__OS_StdErr;
+
+    ASSERT_RUN_ONCE();
+}
+
+static void set_coredumps(void)
+{
+    ASSERT_RUN_ONCE();
+
+    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(getrlimit(RLIMIT_CORE, &initial_coredump_count)),
+              "getrlimit failed!: %s", get_errno_str(errno));
+}
+
+static void reset_coredumps(void)
+{
+    ASSERT_RUN_ONCE();
 }

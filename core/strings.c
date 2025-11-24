@@ -8,16 +8,21 @@ void str_builder_init(struct str_builder *sb, usz init_cap)
     sb->elements    = m_alloc(sizeof(*sb->elements), sb->cap);
 }
 
-void str_builder_append(struct str_builder *sb, char *cstr)
+Str_Builder_Status str_builder_append(struct str_builder *sb, char *cstr)
 {
     ASSERT(sb->count + 1 <= sb->cap, "string builder corrupted!");
 
     if (sb->count + 1 == sb->cap) {
+        if (sb->external) {
+            return STR_BUILDER_STATUS_EXHAUSTED;
+        }
         sb->cap++;
         sb->elements = m_realloc(sb->elements, sizeof(*sb->elements), sb->cap);
     }
     sb->elements[sb->count] = cstr;
     sb->count++;
+
+    return STR_BUILDER_STATUS_SUCCESS;
 }
 
 void str_builder_to_cstr_alloc(const struct str_builder *sb, char **dst)
@@ -56,6 +61,7 @@ void cstr_format_alloc_variadic(char **buffer, const char *fmt, va_list args, us
 {
     usz alloc_size = 0;
     alloc_size = vasprintf(buffer, fmt, args);
+
     if (length)
         *length = alloc_size;
 }

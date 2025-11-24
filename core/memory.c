@@ -22,6 +22,11 @@ void *m_arena_alloc(struct m_arena *arena, usz size, usz count)
     return buff;
 }
 
+void m_arena_reset(struct m_arena *arena)
+{
+    arena->mem_used = 0;
+}
+
 void m_arena_destroy(struct m_arena *arena)
 {
     if (arena->heap)
@@ -54,7 +59,9 @@ M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *dst, usz dst_cap, 
     if (dst_cap < ammount)
         return M_BUFFER_STATUS_OUT_OF_BOUNDS_WRITE;
 
-    m_copy(buffer->base, dst, ammount);
+    m_copy((u8 *)buffer->base + buffer->cursor, dst, ammount);
+    buffer->cursor += ammount;
+
     return M_BUFFER_STATUS_SUCCESS;
 }
 
@@ -104,7 +111,7 @@ void m_array_copy(const struct m_array *src, struct m_array *dst)
 {
     *dst = *src;
     dst->data = m_alloc(dst->width, dst->count);
-    m_copy(dst->data, src->data, src->width*src->count);
+    m_copy(dst->data, src->data, src->width * src->count);
 }
 
 void m_array_delete(struct m_array array)
@@ -113,8 +120,93 @@ void m_array_delete(struct m_array array)
         m_free(array.data);
 }
 
-void init_persistent_arena(void)
+#define M_STACK_DEFAULT_INIT_CAPACITY 0x20
+M_Stack_Status m_stack_init(struct m_stack *stack, const struct m_stack_info info)
 {
+    ASSERT(info.element_size, "[BUG] "STR_SYM(info.element_size)" should be non-zero for all buffers!");
+    stack->cap = info.cap;
+    stack->sp = 0;
+
+    if (info.external) {
+        ASSERT(info.cap, "[BUG] "STR_SYM(info.cap)" should be non-zero for externally managed buffers!");
+        ASSERT(info.buffer, "[BUG] "STR_SYM(info.base)" should point to a buffer of size %d!", info.cap);
+        stack->base = info.buffer;
+    } else {
+        usz init_cap = info.cap ? info.cap : M_STACK_DEFAULT_INIT_CAPACITY;
+        stack->base = m_alloc(info.element_size, init_cap);
+    }
+
+    return M_STACK_STATUS_SUCCESS;
 
 }
 
+M_Stack_Status m_stack_push(struct m_stack *stack, const void *element)
+{
+    if (stack->sp + 1 >= stack->cap) {
+        return M_STACK_STATUS_EXHAUSTED;
+    }
+
+    usz offset = stack->sp * stack->element_size;
+    m_copy((u8 *)stack->base + offset, element, stack->element_size);
+
+    if (stack->sp == stack->cap - 1)
+        return M_STACK_STATUS_LAST_ELEMENT;
+
+    stack->sp++;
+    INFO_LOG("==STACK PUSH==");
+    return M_STACK_STATUS_SUCCESS;
+}
+
+M_Stack_Status m_stack_pop(struct m_stack *stack, void *element)
+{
+    usz offset = stack->sp * stack->element_size;
+    m_copy(element, (u8 *)stack->base + offset, stack->element_size);
+
+    if (stack->sp == 0)
+        return M_STACK_STATUS_EXHAUSTED;
+
+    stack->sp--;
+
+    INFO_LOG("==STACK POP==");
+    return M_STACK_STATUS_SUCCESS;
+}
+
+M_Stack_Status m_stack_push_array(struct m_stack *stack, const struct m_array array)
+{
+    if (stack->sp + array.count >= stack->cap)
+        return M_STACK_STATUS_EXHAUSTED;
+
+    usz offset = stack->sp * stack->element_size;
+    m_copy((u8 *)stack->base + offset, array.data, array.width * array.count);
+
+    if (stack->sp == stack->cap)
+        return M_STACK_STATUS_LAST_ELEMENT;
+
+    stack->sp += array.count;
+
+    return M_STACK_STATUS_SUCCESS;
+}
+
+M_Stack_Status m_stack_delete(const struct m_stack stack)
+{
+    m_free(stack.base);
+    return M_STACK_STATUS_SUCCESS;
+}
+
+static const char *m_stack_status_strs[M_STACK_STATUS_COUNT] = {
+    ENUM_STR_ENTRY(M_STACK_STATUS_SUCCESS),
+    ENUM_STR_ENTRY(M_STACK_STATUS_LAST_ELEMENT),
+    ENUM_STR_ENTRY(M_STACK_STATUS_EXHAUSTED),
+    /* error codes */
+    ENUM_STR_ENTRY(M_STACK_STATUS_OUT_OF_MEMORY),
+
+    ENUM_STR_ENTRY(M_STACK_STATUS_UNKNOWN),
+};
+
+const char *m_stack_get_status_str(usz st)
+{
+    if (st > M_STACK_STATUS_COUNT)
+        st = M_STACK_STATUS_UNKNOWN;
+
+    return m_stack_status_strs[st];
+}

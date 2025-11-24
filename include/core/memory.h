@@ -38,16 +38,16 @@ enum mem_sizes {
     MACRO_END
 
 struct m_arena {
-    b32 heap;
     void *buffer;
     usz mem_avail;
     usz mem_used;
+    b32 heap;
 };
 
 struct m_arena_info {
     usz mem_size;
-    b32 external;
     void *buffer;
+    b32 external;
 };
 
 void m_arena_init(struct m_arena *arena, const struct m_arena_info info);
@@ -55,9 +55,9 @@ void *m_arena_alloc(struct m_arena *arena, usz size, usz count);
 void m_arena_destroy(struct m_arena *arena);
 
 struct m_buffer {
+    void *base;
     usz size;
     usz cursor;
-    void *base;
 };
 
 struct m_buffer_info {
@@ -78,18 +78,18 @@ M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *dst, usz dst_cap, u
 M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *dst, usz dst_cap, usz ammount);
 
 struct m_array {
-    bool    dynamic;
+    void    *data;
     usz     cap;
     usz     count;
     usz     width;
-    void    *data;
+    b32     dynamic;
 };
 
 struct m_array_info {
+    void    *base;
     usz     width;
     usz     count;
     usz     cap;
-    void    *base;
 };
 
 void m_array_init(struct m_array *array, usz width, usz init_size);
@@ -101,6 +101,59 @@ void m_array_append(struct m_array *array, void *element);
 void m_array_copy(const struct m_array *src, struct m_array *dst);
 void m_array_delete(struct m_array array);
 
-void init_persistent_arena(void);
+struct m_stack {
+    void *base;
+    usz element_size;
+    usz sp;
+    usz cap;
+};
+
+struct m_stack_info {
+    void *buffer;
+    usz element_size;
+    usz cap;
+    b32 external;
+};
+
+/*
+ * status code distribution:
+ *
+ *      SUCCESSFUL_STATUS_COUNT  = |SUCCESS_ENUM|
+ *      STATUS_COUNT             = |SUCCESS_ENUM| + |ERROR_ENUM|
+ *      ERROR_STATUS_COUNT       = STATUS_COUNT - SUCCESSFUL_STATUS_COUNT
+ * */
+enum m_stack_success_status_codes {
+    M_STACK_STATUS_SUCCESS = 0,
+    M_STACK_STATUS_LAST_ELEMENT,
+    M_STACK_STATUS_EXHAUSTED,
+
+    M_STACK_SUCCESSFUL_STATUS_COUNT,
+};
+typedef usz M_Stack_Status;
+
+enum m_stack_error_status_codes {
+#define M_STACK_STATUS_
+    M_STACK_STATUS_OUT_OF_MEMORY = M_STACK_SUCCESSFUL_STATUS_COUNT,
+
+    M_STACK_STATUS_UNKNOWN,
+    M_STACK_STATUS_COUNT,
+#define M_STACK_ERROR_STATUS_COUNT (M_STACK_STATUS_COUNT - M_STACK_SUCCESSFUL_STATUS_COUNT)
+};
+
+#define M_STACK_CALL(c)                                             \
+    MACRO_START                                                     \
+        M_Stack_Status st = (c);                                    \
+        if (st >= M_STACK_SUCCESSFUL_STATUS_COUNT) {                \
+            THROW_EXCEPTION("call to '"STR_SYM(c)"' failed : %s",   \
+                            m_stack_get_status_str(st));            \
+        }                                                           \
+    MACRO_END
+
+M_Stack_Status m_stack_init(struct m_stack *stack, const struct m_stack_info info);
+M_Stack_Status m_stack_push(struct m_stack *stack, const void *element);
+M_Stack_Status m_stack_pop(struct m_stack *stack, void *element);
+M_Stack_Status m_stack_push_array(struct m_stack *stack, const struct m_array array);
+M_Stack_Status m_stack_delete(const struct m_stack stack);
+const char *m_stack_get_status_str(usz st);
 
 #endif /* __CORE_MEMORY_H__ */

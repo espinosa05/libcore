@@ -14,6 +14,7 @@
 //#define PRINTF(f, as)   __attribute__((printf(f, as)))
 
 #define __FUNC_ATTR_CONSTRUCTOR__   __attribute__((constructor))
+#define __FUNC_ATTR_DESTRUCTOR__    __attribute__((destructor))
 
 #define get_errno_str(v) strerror(v)
 #define BUILTIN_UNREACHABLE() __builtin_unreachable()

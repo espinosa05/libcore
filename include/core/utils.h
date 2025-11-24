@@ -4,6 +4,7 @@
 #include <core/platform.h>
 #include <core/log.h>
 #include <core/macros.h>
+#include <core/os_lock.h>
 
 #ifndef CORE_HEADLESS
 #   include <core/native_ui.h>
@@ -73,6 +74,16 @@
                     "values '"#a"' and '"#b"' don't match!");   \
             ABORT();                                            \
         }                                                       \
+    MACRO_END
+
+#define ASSERT_RUN_ONCE()                                                   \
+    MACRO_START                                                             \
+        static b32 __once_flag = FALSE;                                     \
+        static struct os_mutex __once_flag_access_mutex = {0};              \
+        os_mutex_lock(&__once_flag_access_mutex);                           \
+        ASSERT_RT(FALSE == __once_flag,                                     \
+                  "function %s was meant to be called once!", __func__);    \
+        os_mutex_unlock(&__once_flag_access_mutex);                         \
     MACRO_END
 
 #define ASSERT_RT(a, ...)                                                   \
