@@ -3,6 +3,8 @@
 #include <core/utils.h>
 #include <core/memory.h>
 
+#include <xcb/xcb_icccm.h>
+
 /* static function declaration start */
 static b32 supported_window_resolution(const struct wm_window_info info);
 /* static function declaration end */
@@ -31,11 +33,17 @@ WM_Status wm_shutdown(struct wm *wm)
 #define DEFAULT_BORDER_COLOR        0
 #define DEFAULT_BACKGROUND_COLOR    0
 
-WM_Status wm_window_create(struct wm *wm, struct wm_window *win, const struct wm_window_info info)
+WM_Status wm_window_create(struct wm *wm, struct wm_window *win, struct wm_window_info info)
 {
     if (!supported_window_resolution(info)) {
         return WM_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED;
     }
+
+    if (info.x_pos == X_POS_CENTERED)
+        info.x_pos = wm->xcb_screen->width_in_pixels;
+
+    if (info.y_pos == Y_POS_CENTERED)
+        info.y_pos = wm->xcb_screen->height_in_pixels;
 
     win->xcb_window = xcb_generate_id(wm->xcb_connection);
     xcb_create_window(wm->xcb_connection,
@@ -53,6 +61,10 @@ WM_Status wm_window_create(struct wm *wm, struct wm_window *win, const struct wm
                       NULL);
 
     wm_window_change_title(wm, win, info.initial_title);
+
+    if (info.force_size) {
+        wm_window_force_size(wm, win, info.width, info.height);
+    }
 
     return WM_STATUS_SUCCESS;
 }
@@ -113,6 +125,17 @@ void wm_window_change_title(struct wm *wm, struct wm_window *win, const char *ti
                         title);
 
     xcb_flush(wm->xcb_connection);
+}
+
+void wm_window_force_size(struct wm *wm, struct wm_window *win, usz width, usz height)
+{
+    xcb_size_hints_t size_hints = {0};
+
+    xcb_icccm_size_hints_set_min_size(&size_hints, width, height);
+    xcb_icccm_size_hints_set_max_size(&size_hints, width, height);
+    xcb_icccm_size_hints_set_base_size(&size_hints, width, height);
+    xcb_icccm_size_hints_set_resize_inc(&size_hints, 0, 0);
+    xcb_icccm_set_wm_size_hints(wm->xcb_connection, win->xcb_window, XCB_ATOM_WM_NORMAL_HINTS, &size_hints);
 }
 
 WM_Status wm_window_close(struct wm *wm, struct wm_window *win)

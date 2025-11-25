@@ -38,11 +38,12 @@ enum wm_status_codes {
 struct wm_window_info {
     usz         width;
     usz         height;
-    usz         x_pos;
-    usz         y_pos;
-
+    sz          x_pos;
+    sz          y_pos;
+    b32         force_size;
     const char  *initial_title;
 };
+
 
 WM_Status wm_init(struct wm *wm);
 WM_Status wm_shutdown(struct wm *wm);
@@ -51,7 +52,9 @@ WM_Status wm_window_create(struct wm *wm, struct wm_window *win, struct wm_windo
 void wm_window_show(struct wm *wm, struct wm_window *win);
 void wm_window_hide(struct wm *wm, struct wm_window *win);
 void wm_window_change_title(struct wm *wm, struct wm_window *win, const char *title);
+void wm_window_force_size(struct wm *wm, struct wm_window *win, usz width, usz height);
 WM_Status wm_window_close(struct wm *wm, struct wm_window *win);
+
 
 const char *wm_get_status_string(usz status);
 #endif /* __CORE_WM_H__ */
