@@ -39,7 +39,7 @@ void m_buffer_init(struct m_buffer *buffer, const struct m_buffer_info info)
     buffer->size = info.size;
 }
 
-M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *src, usz dst_cap, usz ammount)
+M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *src, usz dst_cap, usz ammount)
 {
     if (buffer->cursor + ammount > buffer->size)
         return M_BUFFER_STATUS_OUT_OF_MEMORY;
@@ -51,7 +51,7 @@ M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *src, usz dst_cap, u
     return M_BUFFER_STATUS_SUCCESS;
 }
 
-M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *dst, usz dst_cap, usz ammount)
+M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *dst, usz dst_cap, usz ammount)
 {
     if (buffer->cursor + ammount > buffer->size)
         return M_BUFFER_STATUS_OUT_OF_MEMORY;
@@ -78,7 +78,7 @@ void m_array_init_ext(struct m_array *array, const struct m_array_info info)
 {
     array->data     = info.base;
     array->width    = info.width;
-    array->count    = info.count;
+    array->count    = 0;
     array->cap      = info.cap;
     array->dynamic  = FALSE;
 }
@@ -86,7 +86,11 @@ void m_array_init_ext(struct m_array *array, const struct m_array_info info)
 void m_array_insert(struct m_array *array, usz index, void *element)
 {
     if (index > array->cap) {
-        ASSERT_RT(array->dynamic, "static array ran out of memory");
+        ASSERT_RT(array->dynamic, "static array ran out of memory:\n"
+                                  STR_SYM(array->cap)": %d\n"
+                                  STR_SYM(index)": %d\n",
+                                  array->cap, index);
+
         array->data = m_realloc(array->data, array->width, index + 1);
     }
 
@@ -142,9 +146,8 @@ M_Stack_Status m_stack_init(struct m_stack *stack, const struct m_stack_info inf
 
 M_Stack_Status m_stack_push(struct m_stack *stack, const void *element)
 {
-    if (stack->sp + 1 >= stack->cap) {
+    if (stack->sp + 1 >= stack->cap)
         return M_STACK_STATUS_EXHAUSTED;
-    }
 
     usz offset = stack->sp * stack->element_size;
     m_copy((u8 *)stack->base + offset, element, stack->element_size);
@@ -153,7 +156,7 @@ M_Stack_Status m_stack_push(struct m_stack *stack, const void *element)
         return M_STACK_STATUS_LAST_ELEMENT;
 
     stack->sp++;
-    INFO_LOG("==STACK PUSH==");
+
     return M_STACK_STATUS_SUCCESS;
 }
 
@@ -167,7 +170,6 @@ M_Stack_Status m_stack_pop(struct m_stack *stack, void *element)
 
     stack->sp--;
 
-    INFO_LOG("==STACK POP==");
     return M_STACK_STATUS_SUCCESS;
 }
 

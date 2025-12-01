@@ -76,7 +76,7 @@ void os_close_library(struct os_library lib)
 }
 
 enum threadStatus { THREAD_FAILED = -1, THREAD_CREATED = 0, };
-OS_Thread_Status os_thread_spawn(struct os_thread *thr, os_thread_function_t func, void *arg)
+OS_Thread_Status os_thread_spawn(struct os_thread *thr, void (*func) (void *), void *arg)
 {
     struct clone_args clone_args = {0};
     struct rlimit stack_size = {0};
@@ -159,19 +159,19 @@ usz os_time_get_sec(const struct os_time time)
     return ((usz)os_time_get_msec(time))/1000;
 }
 
-void os_sleep_usec(u32 usec)
+void os_thread_sleep_usec(u32 usec)
 {
     usleep(usec);
 }
 
-void os_sleep_msec(f32 msec)
+void os_thread_sleep_msec(u32 msec)
 {
-    os_sleep_usec((u32)(msec * 1000));
+    os_thread_sleep_usec((msec * 1000));
 }
 
-void os_sleep_sec(u32 sec)
+void os_thread_sleep_sec(u32 sec)
 {
-    /* we don't call 'os_sleep_msec',
+    /* we don't call 'os_thread_sleep_msec',
      * as 1000000 usec appears to trigger EINVAL on some systems
      * */
     sleep((unsigned int)sec);

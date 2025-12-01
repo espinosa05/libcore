@@ -35,15 +35,15 @@ WM_Status wm_shutdown(struct wm *wm)
 
 WM_Status wm_window_create(struct wm *wm, struct wm_window *win, struct wm_window_info info)
 {
-    if (!supported_window_resolution(info)) {
-        return WM_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED;
-    }
 
     if (info.x_pos == X_POS_CENTERED)
         info.x_pos = wm->xcb_screen->width_in_pixels;
 
     if (info.y_pos == Y_POS_CENTERED)
         info.y_pos = wm->xcb_screen->height_in_pixels;
+
+    if (!supported_window_resolution(info))
+        return WM_STATUS_WINDOW_RESOLUTION_NOT_SUPPORTED;
 
     win->xcb_window = xcb_generate_id(wm->xcb_connection);
     xcb_create_window(wm->xcb_connection,
@@ -62,9 +62,8 @@ WM_Status wm_window_create(struct wm *wm, struct wm_window *win, struct wm_windo
 
     wm_window_change_title(wm, win, info.initial_title);
 
-    if (info.force_size) {
+    if (info.force_size)
         wm_window_force_size(wm, win, info.width, info.height);
-    }
 
     return WM_STATUS_SUCCESS;
 }

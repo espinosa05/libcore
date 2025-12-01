@@ -2,11 +2,6 @@
 #define __CORE_OS_LINUX_DEFS_H__
 
 #include <core/cstd.h>
-
-struct os_thread {
-    pid_t pid;
-};
-
 struct os_time {
     struct timespec time_val;
 };
