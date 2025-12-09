@@ -1,4 +1,6 @@
 #include <core/memory.h>
+#include <core/strings.h>
+#include <core/log.h>
 
 void m_arena_init(struct m_arena *arena, const struct m_arena_info info)
 {
@@ -9,6 +11,8 @@ void m_arena_init(struct m_arena *arena, const struct m_arena_info info)
         arena->heap = TRUE;
         arena->buffer = m_alloc(BYTE_SIZE, info.mem_size);
     }
+
+    arena->mem_used = 0;
 }
 
 void *m_arena_alloc(struct m_arena *arena, usz size, usz count)
@@ -97,12 +101,21 @@ void m_array_insert(struct m_array *array, usz index, void *element)
     if (index > array->count)
         array->count = index;
 
-    m_copy((u8 *)array->data + (index * array->width), element, array->width);
+    void *dst = m_array_get_addr(array, index);
+
+    m_copy(dst, element, array->width);
 }
 
 void m_array_get(const struct m_array *array, usz index, void *element)
 {
-    m_copy(element, (u8 *)array->data + (index * array->width), array->width);
+    /* about the only time we really need to modify the data pointed to by 'm_array_get_addr' */
+    void *src = (void *)m_array_get_addr(array, index);
+    m_copy(element, src, array->width);
+}
+
+void *m_array_get_addr(const struct m_array *array, usz index, void *element)
+{
+    u8 *byte_buff = (u8 *)array->data + (index * array->width);
 }
 
 void m_array_append(struct m_array *array, void *element)
@@ -113,9 +126,8 @@ void m_array_append(struct m_array *array, void *element)
 
 void m_array_copy(const struct m_array *src, struct m_array *dst)
 {
-    *dst = *src;
     dst->data = m_alloc(dst->width, dst->count);
-    m_copy(dst->data, src->data, src->width * src->count);
+    m_copy(dst->data, src->data, dst->width * dst->count);
 }
 
 void m_array_delete(struct m_array array)
@@ -211,4 +223,39 @@ const char *m_stack_get_status_str(usz st)
         st = M_STACK_STATUS_UNKNOWN;
 
     return m_stack_status_strs[st];
+}
+
+M_Queue_Status m_queue_init_ext(struct m_queue *queue, const struct m_queue_info info)
+{
+    struct ll_double_info queue_list_info = {
+        .width = info.width,
+        .count = info.cap,
+        .arena = info.arena,
+    };
+    ll_double_init(&queue->data, queue_list_info);
+
+    return M_QUEUE_STATUS_SUCCESS;
+}
+
+M_Queue_Status m_queue_init(struct m_queue *queue, usz count, usz width)
+{
+    return M_QUEUE_STATUS_SUCCESS;
+}
+
+M_Queue_Status m_queue_add(struct m_queue *queue, void *element)
+{
+
+    return M_QUEUE_STATUS_SUCCESSS;
+}
+
+M_Queue_Status m_queue_drain(struct m_queue *queue, void *element)
+{
+
+    return M_QUEUE_STATUS_SUCCESS;
+}
+
+M_Queue_Status m_queue_delete(struct m_queue *queue)
+{
+    ASSERT(queue->heap, "queue was not allocated on heap!");
+    m_free(queue->heap);
 }

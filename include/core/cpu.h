@@ -2,8 +2,16 @@
 #define __CORE_CPU_H__
 
 #include <core/types.h>
+#include <core/memory.h>
 
-usz cpu_get_logical_count(void);
-usz cpu_get_physical_count(void);
+struct cpu_info {
+    usz logical_core_count;
+    usz physical_core_count;
+    const char *cpu_name;
+
+    struct m_array cache_sizes;
+};
+
+void cpu_info_query_all(struct cpu_info *cpu, struct m_arena *arena);
 
 #endif /* __CORE_CPU_H__ */

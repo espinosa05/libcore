@@ -5,6 +5,8 @@
 
 #define OUT_DIR "out/"
 
+#define M4      "m4"
+
 #define CC      "gcc"
 #define CFLAGS  "-I../include", "-ggdb", "-Wall", "-std=gnu11", "-Wextra", "-pedantic", "-Werror", "-c"
 #define LIBNAME "core"

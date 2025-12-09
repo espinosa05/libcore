@@ -28,15 +28,20 @@ typedef uint32_t    b32; /* boolean type */
 
 typedef const char  *cstr_t;    /* looks pretty while casting */
 
-#define U8_MAX      ((1<<8)-1)
-#define U16_MAX     ((1<<16)-1)
-#define U32_MAX     ((1<<32)-1)
-#define U64_MAX     ((1<<64)-1)
+#define U8_MIN      0
+#define U16_MIN     0
+#define U32_MIN     0
+#define U64_MIN     0
 
-#define S8_MAX      (U8_MAX/2)
-#define S16_MAX     (U16_MAX/2)
-#define S32_MAX     (U32_MAX/2)
-#define S64_MAX     (U32_MAX/2)
+#define U8_MAX      255U
+#define U16_MAX     65535U
+#define U32_MAX     4294967295UL
+#define U64_MAX     18446744073709551615ULL
+
+#define S8_MAX      (((1<<8)/2)-1)
+#define S16_MAX     (((1<<16)/2)-1)
+#define S32_MAX     (((1<<32)/2)-1)
+#define S64_MAX     (((1<<64)/2)-1)
 
 #define SZ_FMT      "%"PRIi64   /* weird and hardcoded */
 #define USZ_FMT     "%"PRIu64   /* applies to this aswell */
@@ -73,6 +78,23 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 #define S16_N_FMT(n)    "%"#n PRIi16
 #define S32_N_FMT(n)    "%"#n PRIi32
 #define S64_N_FMT(n)    "%"#n PRIi64
+
+#define TYPE_ARRAY_ELEMENT(a, i, ...) ((__VA_ARGS__)(a)[(i)])
+
+#define SZ_ARRAY_ELEMENT(a, i)      TYPE_ARRAY_ELEMENT(a, i, sz)
+#define USZ_ARRAY_ELEMENT(a, i)     TYPE_ARRAY_ELEMENT(a, i, usz)
+
+#define S8_ARRAY_ELEMENT(a, i)      TYPE_ARRAY_ELEMENT(a, i, s8)
+#define S16_ARRAY_ELEMENT(a, i)     TYPE_ARRAY_ELEMENT(a, i, s16)
+#define S32_ARRAY_ELEMENT(a, i)     TYPE_ARRAY_ELEMENT(a, i, s32)
+#define S64_ARRAY_ELEMENT(a, i)     TYPE_ARRAY_ELEMENT(a, i, s64)
+
+#define U8_ARRAY_ELEMENT(a, i)      TYPE_ARRAY_ELEMENT(a, i, u8)
+#define U16_ARRAY_ELEMENT(a, i)     TYPE_ARARY_ELEMENT(a, i, u16)
+#define U32_ARRAY_ELEMENT(a, i)     TYPE_ARRAY_ELEMENT(a, i, u32)
+#define U64_ARRAY_ELEMENT(a, i)     TYPE_ARRAY_ELEMENT(a, i, u64)
+
+#define STR_ARRAY_ELEMENT(a, i)     TYPE_ARRAY_ELEMENT(a, i, cstr_t)
 
 #define STR_FMT     "%s"
 

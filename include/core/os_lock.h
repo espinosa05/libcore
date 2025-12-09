@@ -6,7 +6,7 @@
 #include <core/cstd.h>
 
 #if defined (CORE_PLATFORM_LINUX)
-
+#define OS_MUTEX_INIT {PTHREAD_MUTEX_INITIALIZER}
 struct os_mutex {
     pthread_mutex_t pmutex;
 };

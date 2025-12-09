@@ -22,8 +22,11 @@ static OS_Stream_Status open_ipc_socket_stream(struct os_stream *stream, const s
 static OS_Socket_Status os_socket_errno_code_to_status(sz status_code, usz socket_function, usz errno_val);
 static void os_file_init_proc_io_handles(void);
 static void set_coredumps(void);
-static void reset_coredumps(void) __FUNC_ATTR_DESTRUCTOR__;
-static void platform_init() __FUNC_ATTR_CONSTRUCTOR__;
+static void reset_coredumps(void);
+
+static void platform_shutdown(void) __FUNC_ATTR_DESTRUCTOR__;
+static void platform_init(void) __FUNC_ATTR_CONSTRUCTOR__;
+static void register_core_signal_handlers(void) __FUNC_ATTR_CONSTRUCTOR__;
 /* static function declaration end */
 
 /* global data start */
@@ -232,6 +235,37 @@ OS_Stream_Status os_stream_read(struct os_stream *stream, void *buffer, const us
 
     return OS_STREAM_STATUS_SUCCESS;
 }
+enum os_file_functions {
+    OS_FILE_FUNC_OPEN = 0,
+    OS_FILE_FUNC_CREATE,
+    OS_FILE_FUNC_READ,
+    OS_FILE_FUNC_WRITE,
+    OS_FILE_FUNC_CLOSE,
+};
+
+OS_File_Status os_file_errno_to_status(usz status, usz function, usz errnoval)
+{
+    if (status == 0)
+        return OS_FILE_STATUS_SUCCESS;
+
+    switch (function) {
+    case OS_FILE_FUNC_OPEN:
+        switch (errnoval) {
+        case EACCES: return OS_FILE_STATUS_PERMISSION_DENIED;
+        default: UNREACHABLE();
+        }
+    case OS_FILE_FUNC_CREATE:
+        switch (errnoval) {
+        case EACCES: return OS_FILE_STATUS_PERMISSION_DENIED;
+        case EEXIST: return OS_FILE_STATUS_FILE_EXISTS;
+        default: UNREACHABLE();
+        }
+    case OS_FILE_FUNC_READ:
+    case OS_FILE_FUNC_WRITE:
+    case OS_FILE_FUNC_CLOSE:
+    default: UNREACHABLE();
+    }
+}
 
 OS_Stream_Status os_stream_write(struct os_stream *stream, void *buffer, const usz buffer_size, const usz size)
 {
@@ -267,37 +301,57 @@ OS_Stream_Status os_stream_printf(struct os_stream *stream, const char *fmt, ...
 }
 
 
-void os_file_open(struct os_file *f, const struct os_file_info info)
+OS_File_Status os_file_open(struct os_file *f, const struct os_file_info info)
 {
-    TODO("error handling");
-    f->handle = open(info.path, info.perm);
-    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(f->handle), "syscall open failed!");
+    sz st = open(info.path, info.perm);
+    if (!OS_LINUX_SYSCALL_SUCCESS(st)) {
+        f->handle = OS_FILE_INVALID;
+        return os_file_errno_to_status(st, OS_FILE_FUNC_OPEN, errno);
+    }
+
+    f->handle = st;
+
+    return OS_FILE_STATUS_SUCCESS;
 }
 
-void os_file_create(struct os_file *f, const struct os_file_info info)
+OS_File_Status os_file_create(struct os_file *f, const struct os_file_info info)
 {
-    TODO("error handling");
     u32 fd_perm = info.perm | O_CREAT; /* the user does not need to know this happens */
-    f->handle = open(info.path, fd_perm, S_IWUSR);
-    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(f->handle), "open syscall failed!");
+    sz st = open(info.path, fd_perm, S_IWUSR);
+    if (!OS_LINUX_SYSCALL_SUCCESS(st)) {
+        f->handle = OS_FILE_INVALID;
+        return os_file_errno_to_status(st, OS_FILE_FUNC_CREATE, errno);
+    }
+
+    f->handle = st;
+
+    return OS_FILE_STATUS_SUCCESS;
 }
 
-void os_file_read(const struct os_file *f, void *buffer, const usz buffer_size, const usz bytes)
+OS_File_Status os_file_read(const struct os_file *f, void *buffer, const usz buffer_size, const usz bytes)
 {
     TODO("error handling");
     ASSERT(bytes <= buffer_size, "out of bounds read!");
     sz st = read(f->handle, buffer, bytes);
-    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "read syscall failed!");
+    if (!OS_LINUX_SYSCALL_SUCCESS(st)) {
+        return os_file_errno_to_status(st, OS_FILE_FUNC_READ, errno);
+    }
+
+    return OS_FILE_STATUS_SUCCESS;
 }
 
-void os_file_write(const struct os_file *f, const void *buffer, const usz buffer_size, const usz bytes)
+OS_File_Status os_file_write(const struct os_file *f, const void *buffer, const usz buffer_size, const usz bytes)
 {
     ASSERT(bytes <= buffer_size, "out of bounds write!");
     sz st = write(f->handle, buffer, bytes);
-    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall write failed!");
+    if (!OS_LINUX_SYSCALL_SUCCESS(st)) {
+        return os_file_errno_to_status(st, OS_FILE_FUNC_WRITE, errno);
+    }
+
+    return OS_FILE_STATUS_SUCCESS;
 }
 
-void os_file_printf(const struct os_file *f, const char *fmt, ...)
+OS_File_Status os_file_printf(const struct os_file *f, const char *fmt, ...)
 {
     char *msg;
     va_list args;
@@ -305,11 +359,13 @@ void os_file_printf(const struct os_file *f, const char *fmt, ...)
 
     va_start(args, fmt);
     cstr_format_alloc_variadic(&msg, fmt, args, &msg_length);
-    os_file_write(f, msg, msg_length, msg_length);
+    usz st = os_file_write(f, msg, msg_length, msg_length);
     m_free(msg);
+
+    return st;
 }
 
-void os_file_close(struct os_file *f)
+OS_File_Status os_file_close(struct os_file *f)
 {
     TODO("error handling");
     sz st = close(f->handle);
@@ -672,10 +728,18 @@ static OS_Stream_Status open_ipc_socket_stream(struct os_stream *stream, const s
     return OS_STREAM_STATUS_SUCCESS;
 }
 
+
 static void platform_init()
 {
+    register_core_signal_handlers();
     os_file_init_proc_io_handles();
     set_coredumps();
+
+}
+
+static void platform_shutdown(void)
+{
+    reset_coredumps();
 }
 
 enum linux_default_io_fds { OS_LINUX_STDIN = STDIN_FILENO, OS_LINUX_STDOUT = STDOUT_FILENO, OS_LINUX_STDERR = STDERR_FILENO, };
@@ -694,13 +758,20 @@ static void os_file_init_proc_io_handles(void)
 
 static void set_coredumps(void)
 {
-    ASSERT_RUN_ONCE();
-
     ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(getrlimit(RLIMIT_CORE, &initial_coredump_count)),
               "getrlimit failed!: %s", get_errno_str(errno));
+
+    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(setrlimuit);
 }
 
 static void reset_coredumps(void)
 {
-    ASSERT_RUN_ONCE();
+    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(setrlimit(RLIMIT_CORE, ));
+}
+
+static void register_core_signal_handlers(void)
+{
+    set_linux_signal_handler(SIGINT,    core_empty_handler);
+    set_linux_signal_handler(SIGSEGV,   core_crash_handler);
+    set_linux_signal_handler(SIGABRT,   core_crash_handler);
 }

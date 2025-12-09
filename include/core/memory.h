@@ -3,7 +3,7 @@
 
 #include <core/utils.h>
 #include <core/types.h>
-#include <core/error_report.h>
+#include <core/memory.h>
 #include <core/cstd.h> /* memset, malloc, realloc, free */
 
 enum mem_sizes {
@@ -16,9 +16,9 @@ enum mem_sizes {
 #define WORD_SIZE sizeof(usz)
 
 #ifdef GNUC
-#define MEMORY_BARRIER() asm volatile ("" ::: "memory")
+#define M_FENCE() asm volatile ("" ::: "memory")
 #else
-#define MEMORY_BARRIER()
+#define M_FENCE() __EMPTY_MACRO__
 #endif
 
 #define PAGE_SIZE (KB_SIZE*4)
@@ -34,7 +34,6 @@ enum mem_sizes {
     MACRO_START             \
         MEMORY_BARRIER();   \
         m_set(p, 0, s);     \
-        MEMORY_BARRIER();   \
     MACRO_END
 
 struct m_arena {
@@ -43,6 +42,8 @@ struct m_arena {
     usz mem_used;
     b32 heap;
 };
+#define M_ARENA(...) (struct m_arena) { __VA_ARGS__ }
+#define M_ARENA_REF(...) &M_ARENA(__VA_ARGS__)
 
 struct m_arena_info {
     usz mem_size;
@@ -59,6 +60,8 @@ struct m_buffer {
     usz size;
     usz cursor;
 };
+#define M_BUFFER(...) (struct m_buffer) { __VA_ARGS__ }
+#define M_BUFFER_REF(...) &M_BUFFER(__VA_ARGS__)
 
 struct m_buffer_info {
     void *buffer;
@@ -79,11 +82,18 @@ M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *dst, usz dst_cap, 
 
 struct m_array {
     void    *data;
-    usz     cap;
-    usz     count;
     usz     width;
+    usz     count;
+    usz     cap;
     b32     dynamic;
 };
+#define M_ARRAY(...) (struct m_array) { __VA_ARGS__ }
+#define M_ARRAY_INIT(buff, width, size) (struct m_array) { .data = buff, .width = width, .count = size, .cap = size, }
+#define M_ARRAY_ARG(...) M_ARRAY_INIT(__VA_ARGS__)
+#define M_ARRAY_REF(...) &M_ARRAY(__VA_ARGS__)
+
+#define GENERIC_ARRAY_ENTRY_REF(a, s, i) ((u8 *)(a)+ ((s)*(i)))
+#define GENERIC_ARRAY_ENTRY(a, s, i) *GENERIC_ARRAY_ENTRY_REF(a, s, i)
 
 struct m_array_info {
     void    *base;
@@ -93,10 +103,12 @@ struct m_array_info {
 };
 
 void m_array_init(struct m_array *array, usz width, usz init_size);
+
 /* assign an existing buffer to an array structure */
 void m_array_init_ext(struct m_array *array, const struct m_array_info info);
 void m_array_insert(struct m_array *array, usz index, void *element);
-void m_array_get(const struct m_array *arry, usz index, void *element);
+void m_array_get(const struct m_array *array, usz index, void *element);
+void *m_array_get_addr(const struct m_array *array, usz index);
 void m_array_append(struct m_array *array, void *element);
 void m_array_copy(const struct m_array *src, struct m_array *dst);
 void m_array_delete(struct m_array array);
@@ -107,6 +119,8 @@ struct m_stack {
     usz sp;
     usz cap;
 };
+#define M_STACK(...) (struct m_stack) { __VA_ARGS__ }
+#define M_STACK_REF(...) &M_STACK(__VA_ARGS__)
 
 struct m_stack_info {
     void *buffer;

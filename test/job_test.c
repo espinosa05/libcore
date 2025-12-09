@@ -3,13 +3,15 @@
 #include <core/job.h>
 #include <core/log.h>
 
+#include <string.h>
+
 
 #define JOB_FUNC(j) ((void (*) (void *))j)
 #define JOB_ARGS(...) ((void *)__VA_ARGS__)
 
 struct os_mutex print_lock = {0};
 
-#define MAX_JOBS 256
+#define MAX_JOBS 10
 
 struct test_job0_args {
     usz     number;
@@ -38,16 +40,32 @@ void test_job1(struct test_job1_args *args)
     }
 }
 
+
+struct test_job2_args {
+    usz number;
+};
+
+void test_job2(struct test_job2_args *args) {
+    os_mutex_lock(&print_lock);
+    if (args->number == 0) {
+        WARN_LOG("test_job2: "STR_SYM(args->number)": is zero!");
+    } else {
+        INFO_LOG("test_job2: "STR_SYM(args->number)": %d", args->number);
+    }
+    os_mutex_unlock(&print_lock);
+}
+
 int main(int argc, char **argv)
 {
     os_mutex_init(&print_lock);
 
     struct m_arena arena = {0};
     struct m_arena_info arena_info = {
-        .buffer     = (u8 [KB_SIZE]) {0},
+        .buffer     = (u8 [20*KB_SIZE]) {0},
         .mem_size   = KB_SIZE,
         .external   = TRUE,
     };
+    m_arena_init(&arena, arena_info);
 
     struct job_queue jobs = {0};
     struct job_queue_info jobs_info = {
@@ -60,7 +78,12 @@ int main(int argc, char **argv)
     struct job_info job_data[] = {
         { JOB_FUNC(test_job0), JOB_ARGS(&(struct test_job0_args) { 32, "Hello World!", })},
         { JOB_FUNC(test_job1), JOB_ARGS(&(struct test_job1_args) { (usz [SIZE]) {3, 4, 43}, SIZE, })},
+        { JOB_FUNC(test_job2), JOB_ARGS(&(struct test_job2_args) { 0 })}
     };
-    job_queue_add(&jobs, &job_data[0]);
-    job_queue_add(&jobs, &job_data[1]);
+
+    for (usz i = 0; i < ARRAY_SIZE(job_data); ++i) {
+        job_queue_add(&jobs, &job_data[i]);
+    }
+
+    return 0;
 }

@@ -23,6 +23,8 @@
 #define __NULLABLE__
 
 #define TODO(...)       F_LOG_T(OS_STDERR, "TODO", ANSI_COLOR_YELLOW, __VA_ARGS__)
+#define FIXME(...)      F_LOG_T(OS_STDERR, "FIXME", ANSI_COLOR_YELLOW, __VA_ARGS__)
+
 #define IMPL()          TODO("IMPLEMENT FUNCTION")
 #define ARRAY_SIZE(a)   (sizeof(a)/sizeof(*a))
 #define ABORT()         abort()
@@ -43,7 +45,7 @@
             F_LOG(OS_STDERR, "make sure to implement proper error handling for this one!!"); \
             F_LOG(OS_STDERR, "\n");                                             \
             ABORT();                                                            \
-        }                                                                       \
+        }                              \
     MACRO_END
 
 #define THROW_EXCEPTION(...)                                            \
@@ -61,11 +63,9 @@
     MACRO_END
 
 #define SWAP(a, b)          \
-    MACRO_START             \
         (a) ^= (b);         \
         (b) ^= (a);         \
-        (a) ^= (b);         \
-    MACRO_END
+        (a) ^= (b)
 
 #define ASSERT_EQ(a, b)                                         \
     MACRO_START                                                 \
@@ -79,7 +79,7 @@
 #define ASSERT_RUN_ONCE()                                                   \
     MACRO_START                                                             \
         static b32 __once_flag = FALSE;                                     \
-        static struct os_mutex __once_flag_access_mutex = {0};              \
+        static struct os_mutex __once_flag_access_mutex = OS_MUTEX_INIT;    \
         os_mutex_lock(&__once_flag_access_mutex);                           \
         ASSERT_RT(FALSE == __once_flag,                                     \
                   "function %s was meant to be called once!", __func__);    \
@@ -95,6 +95,7 @@
             ABORT();                                                        \
         }                                                                   \
     MACRO_END
+
 #define ASSERT(...) ASSERT_RT(__VA_ARGS__)
 
 #define CHECK_NULL(var)                                                     \
