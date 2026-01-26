@@ -1,19 +1,24 @@
+
 #include <core/cpu.h>
 #include <core/ia64.h>
 #include <core/strings.h>
 #include <core/log.h>
 
-#define CPU_DEFAULT_LOGICAL_COUNT 4
+#define CPU_DEFAULT_LOGICAL_COUNT 1
 
 #define INTEL_VENDOR_STRING "GenuineIntel"
 #define AMD_VENDOR_STRING   "AuthenticAMD"
 
+/* static function declaration start */
 static void cpu_get_vendor_id(char **string);
 
-static void cpu_get_name();
+static void cpu_get_name(struct cpu_info *cpu, struct m_arena *arena);
+static void cpu_get_logical_core_count(struct cpu_info *info);
 static void cpu_get_physical_core_count(struct cpu_info *info);
+static void cpu_get_cache_sizes(struct cpu_info *info, struct m_arena *arena);
 static usz cpu_get_logical_core_count_intel(void);
 static usz cpu_get_logical_core_count_amd(void);
+/* static function declaration end */
 
 void cpu_info_query_all(struct cpu_info *cpu, struct m_arena *arena)
 {
@@ -23,30 +28,33 @@ void cpu_info_query_all(struct cpu_info *cpu, struct m_arena *arena)
     cpu_get_cache_sizes(cpu, arena);
 }
 
-static usz cpu_get_physical_count(void)
+static void cpu_get_physical_count(struct cpu_info *info)
 {
     FIXME("query physical core count");
-    return cpu_get_logical_count();
+    cpu_get_logical_core_count(info);
 }
 
-static usz cpu_get_logical_count(void)
+static void cpu_get_logical_core_count(struct cpu_info *info)
 {
     if (x64_has_cpuid()) {
         char *vendor_id = NULL;
         cpu_get_vendor_id(&vendor_id);
 
         /* AMD and Intel handle things differently for some reason */
-        if (cstr_compare(INTEL_VENDOR_STRING, vendor_id))
-            return cpu_get_logical_count_intel();
+        if (cstr_compare(INTEL_VENDOR_STRING, vendor_id)) {
+            info->logical_core_count = cpu_get_logical_core_count_intel();
+            return;
+        }
 
-        if (cstr_compare(AMD_VENDOR_STRING, vendor_id))
-            return cpu_get_logical_count_amd();
+        if (cstr_compare(AMD_VENDOR_STRING, vendor_id)) {
+            info->logical_core_count = cpu_get_logical_core_count_amd();
+            return;
+        }
     }
 
     /* we get here if we're not on Intel, AMD or for some reason can't execute CPUID */
-    ERROR_LOG("could not query for logical processor count... continuing with default value");
-
-    return CPU_DEFAULT_LOGICAL_COUNT;
+    ERROR_LOG("could not query for logical processor count... assuming single core");
+    info->logical_core_count = 1;
 }
 
 #define CPUID_REG_COUNT 4
@@ -95,9 +103,15 @@ static void cpu_get_vendor_id(char **string)
     *string = vendor_string_buffer;
 }
 
-static char *cpu_get_name(struct m_arena *arena)
+static void cpu_get_name(struct cpu_info *cpu, struct m_arena *arena)
 {
-    x64_get_brand_string();
+    FIXME("brand string");
+    cpu->name = "PLACE_HOLDER";
+    return;
+
+    usz string_length = x64_get_brand_string(NULL);
+    cpu->name = m_arena_alloc(arena, string_length + NULL_TERM_SIZE);
+    x64_get_brand_string(cpu->name);
 }
 
 static usz cpu_get_logical_count_intel(void)
@@ -113,3 +127,7 @@ static usz cpu_get_logical_count_amd(void)
 }
 
 
+static void cpu_get_cache_sizes(struct cpu_info *info, struct m_arena *arena)
+{
+
+}

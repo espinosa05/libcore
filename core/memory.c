@@ -90,10 +90,7 @@ void m_array_init_ext(struct m_array *array, const struct m_array_info info)
 void m_array_insert(struct m_array *array, usz index, void *element)
 {
     if (index > array->cap) {
-        ASSERT_RT(array->dynamic, "static array ran out of memory:\n"
-                                  STR_SYM(array->cap)": %d\n"
-                                  STR_SYM(index)": %d\n",
-                                  array->cap, index);
+        ASSERT_RT(array->dynamic, "array out of memory!\n"M_ARRAY_FMT, M_ARRAY_FMT_ARG(ar);
 
         array->data = m_realloc(array->data, array->width, index + 1);
     }
@@ -109,13 +106,15 @@ void m_array_insert(struct m_array *array, usz index, void *element)
 void m_array_get(const struct m_array *array, usz index, void *element)
 {
     /* about the only time we really need to modify the data pointed to by 'm_array_get_addr' */
-    void *src = (void *)m_array_get_addr(array, index);
+    void *src = m_array_get_addr(array, index);
     m_copy(element, src, array->width);
 }
 
-void *m_array_get_addr(const struct m_array *array, usz index, void *element)
+void *m_array_get_addr(const struct m_array *array, usz index)
 {
-    u8 *byte_buff = (u8 *)array->data + (index * array->width);
+    ASSERT(index <= array->count, "m_array("USZ_FMT") out of bounds read: @ "PTR_FMT" + "USZ_FMT", ",
+                                  array->count);
+    return GENERIC_ARRAY_ENTRY_REF(array->data, array->width, index);
 }
 
 void m_array_append(struct m_array *array, void *element)
@@ -239,18 +238,21 @@ M_Queue_Status m_queue_init_ext(struct m_queue *queue, const struct m_queue_info
 
 M_Queue_Status m_queue_init(struct m_queue *queue, usz count, usz width)
 {
+    UNUSED(queue);
+    UNUSED(count);
+    UNUSED(width);
     return M_QUEUE_STATUS_SUCCESS;
 }
 
 M_Queue_Status m_queue_add(struct m_queue *queue, void *element)
 {
-
+    ll_double_push(&queue->data, element);
     return M_QUEUE_STATUS_SUCCESSS;
 }
 
 M_Queue_Status m_queue_drain(struct m_queue *queue, void *element)
 {
-
+    ll_double_remove_last(&queue->data, element);
     return M_QUEUE_STATUS_SUCCESS;
 }
 

@@ -1,5 +1,4 @@
 #include <core/strings.h>
-#include <core/memory.h>
 
 void str_builder_init(struct str_builder *sb, usz init_cap)
 {
@@ -8,21 +7,39 @@ void str_builder_init(struct str_builder *sb, usz init_cap)
     sb->elements    = m_alloc(sizeof(*sb->elements), sb->cap);
 }
 
+void str_builder_init_ext(struct str_builder *sb, const struct m_buffer buff)
+{
+    sb->count       = 0;
+    sb->cap         = buff.size;
+    sb->elements    = buff.base;
+}
+
 Str_Builder_Status str_builder_append(struct str_builder *sb, char *cstr)
 {
     ASSERT(sb->count + 1 <= sb->cap, "string builder corrupted!");
 
-    if (sb->count + 1 == sb->cap) {
+    sb->count++;
+
+    if (sb->count == sb->cap) {
         if (sb->external) {
             return STR_BUILDER_STATUS_EXHAUSTED;
         }
         sb->cap++;
         sb->elements = m_realloc(sb->elements, sizeof(*sb->elements), sb->cap);
     }
-    sb->elements[sb->count] = cstr;
-    sb->count++;
+    sb->elements[sb->count - 1] = cstr;
 
     return STR_BUILDER_STATUS_SUCCESS;
+}
+
+void str_builder_to_cstr(const struct str_builder *sb, char *dst, usz cap)
+{
+    for (usz i = 0; i < sb->count; ++i) {
+        cstr_concat(dst, sb->elements[i], cap);
+        cap -= cstr_length(sb->elements[i]);
+        ASSERT(cap > 0, "can't copy str_builder element \"%s\": no space remaining",
+                        sb->elements[i]);
+    }
 }
 
 void str_builder_to_cstr_alloc(const struct str_builder *sb, char **dst)
@@ -89,6 +106,4 @@ char *cstr_format(char *buffer, usz size, const char *fmt, ...)
     va_start(args, fmt);
     return cstr_format_variadic(buffer, size, fmt, args, NULL);
 }
-
-
 
