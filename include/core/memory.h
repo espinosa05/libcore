@@ -73,12 +73,14 @@ enum m_buffer_status_codes {
     M_BUFFER_STATUS_OUT_OF_MEMORY,
     M_BUFFER_STATUS_OUT_OF_BOUNDS_READ,
     M_BUFFER_STATUS_OUT_OF_BOUNDS_WRITE,
+    M_BUFFER_STATUS_OUT_OF_BOUNDS_CURSOR,
 };
 typedef u32 M_Buffer_Status;
 
 void m_buffer_init(struct m_buffer *buffer, const struct m_buffer_info info);
 M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *dst, usz dst_cap, usz ammount);
 M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *dst, usz dst_cap, usz ammount);
+M_Buffer_Status m_buffer_set_cursor(struct m_buffer *buffer, usz pos);
 
 struct m_array {
     void    *data;

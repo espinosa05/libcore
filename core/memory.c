@@ -69,6 +69,15 @@ M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *dst, usz dst_cap, u
     return M_BUFFER_STATUS_SUCCESS;
 }
 
+M_Buffer_Status m_buffer_set_cursor(struct m_buffer *buffer, usz pos)
+{
+    if (pos <= buffer->size)
+        return M_BUFFER_STATUS_OUT_OF_BOUNDS_CURSOR;
+
+    buffer->cursor = pos;
+    return M_BUFFER_STATUS_SUCCESS;
+}
+
 void m_array_init(struct m_array *array, usz width, usz init_size)
 {
     array->data     = m_alloc(width, init_size);
