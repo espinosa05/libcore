@@ -2,9 +2,15 @@
 #include <core/queue.h>
 #include <core/utils.h>
 
+/* static function declaration start */
+static void job_queue_worker_dispatch(struct job_queue *jobs);
+/* static function declaration end */
+
 void job_queue_init(struct job_queue *jobs, const struct job_queue_info info)
 {
     CHECK_NULL(info.arena);
+
+    jobs->drain = FALSE;
 
     os_mutex_init(&jobs->access_mutex);
     struct m_array_info thread_pool_info = {
@@ -25,8 +31,8 @@ void job_queue_init(struct job_queue *jobs, const struct job_queue_info info)
         .args = JOB_ARGS(&jobs->job_queue),
     };
     for (usz i = 0; i < jobs->thread_pool.count; ++i) {
-        os_thread_spawn(m_array_get_addr(&info->thread_pool, i),
-                        &job_queue_worker);
+        os_thread_spawn(m_array_get_addr(&jobs->thread_pool, i),
+                        job_queue_worker.func, job_queue_worker.args);
     }
 }
 
@@ -37,10 +43,14 @@ void job_queue_add(struct job_queue *jobs, const struct job *job)
     os_mutex_unlock(&jobs->access_mutex);
 }
 
-void job_queue_drain(struct job_queue *jobs, struct job *job)
+void job_queue_drain(struct job_queue *jobs)
 {
-    os_mutex_lock(&job->access_mutex);
-    queue_remove(&jobs->job_queue, );
+    os_mutex_lock(&jobs->access_mutex);
+    jobs->drain = TRUE;
     os_mutex_unlock(&jobs->access_mutex);
 }
 
+static void job_queue_worker_dispatch(struct job_queue *jobs)
+{
+    UNUSED(jobs);
+}

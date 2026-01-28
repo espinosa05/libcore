@@ -10,7 +10,13 @@ struct ll_double_info {
     struct m_arena *arena;
 };
 
-struct ll_double_node
+struct ll_double_node;
+
+struct ll_double_node {
+    struct ll_double_node *next;
+    struct ll_double_node *prev;
+    void *data;
+};
 
 struct ll_double {
     struct ll_double_node *first;

@@ -95,7 +95,7 @@ void build_library(void)
         if (!is_type(src.items[i], "c") || is_ignored(src.items[i]))
             continue;
         c_src = src.items[i];
-        nob_cmd_append(&comp_cmd, CC, CFLAGS);
+        nob_cmd_append(&comp_cmd, CC, CFLAGS, "-c");
         obj_file = src_path_to_obj_path(src.items[i]);
         nob_da_append(&obj_files, obj_file);
         nob_cmd_append(&comp_cmd, c_src, "-o", obj_file);

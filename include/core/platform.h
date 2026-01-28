@@ -17,6 +17,11 @@
 #undef CORE_PLATFORM_MACOS
 #undef CORE_PLATFORM_BSD
 
+#if defined(GNUC)
+#   define CORE_PLATFORM_COMPILER_GNUC
+#endif /* GNUC */
+
+
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #   define CORE_PLATFORM_WINDOWS            (1)
 #   ifdef __WIN64

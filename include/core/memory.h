@@ -1,10 +1,11 @@
-#ifndef __CORE_MEMORY_H__
-#define __CORE_MEMORY_H__
+#ifndef CORE_MEMORY_H__
+#define CORE_MEMORY_H__
 
 #include <core/utils.h>
 #include <core/types.h>
-#include <core/memory.h>
 #include <core/cstd.h> /* memset, malloc, realloc, free */
+#include <core/platform.h>
+#include <core/buffer.h>
 
 enum mem_sizes {
     BYTE_SIZE   = 1,
@@ -15,11 +16,11 @@ enum mem_sizes {
 
 #define WORD_SIZE sizeof(usz)
 
-#ifdef GNUC
+#ifdef CORE_PLATFORM_COMPILER_GNUC
 #define M_FENCE() asm volatile ("" ::: "memory")
 #else
 #define M_FENCE() __EMPTY_MACRO__
-#endif
+#endif /* CORE_PLATFORM_COMPILER_GNUC */
 
 #define PAGE_SIZE (KB_SIZE*4)
 #define PAGES(c) (PAGE_SIZE*c)
@@ -30,10 +31,10 @@ enum mem_sizes {
 #define m_set(p, b, c)      memset(p, b, c)
 #define m_copy              memcpy
 
-#define m_zero(p, s)        \
-    MACRO_START             \
-        MEMORY_BARRIER();   \
-        m_set(p, 0, s);     \
+#define m_zero(p, s)    \
+    MACRO_START         \
+        M_FENCE();      \
+        m_set(p, 0, s); \
     MACRO_END
 
 struct m_arena {
@@ -55,33 +56,6 @@ void m_arena_init(struct m_arena *arena, const struct m_arena_info info);
 void *m_arena_alloc(struct m_arena *arena, usz size, usz count);
 void m_arena_destroy(struct m_arena *arena);
 
-struct m_buffer {
-    void *base;
-    usz size;
-    usz cursor;
-};
-#define M_BUFFER(...) (struct m_buffer) { __VA_ARGS__ }
-#define M_BUFFER_REF(...) &M_BUFFER(__VA_ARGS__)
-
-struct m_buffer_info {
-    void *buffer;
-    usz size;
-};
-
-enum m_buffer_status_codes {
-    M_BUFFER_STATUS_SUCCESS = 0,
-    M_BUFFER_STATUS_OUT_OF_MEMORY,
-    M_BUFFER_STATUS_OUT_OF_BOUNDS_READ,
-    M_BUFFER_STATUS_OUT_OF_BOUNDS_WRITE,
-    M_BUFFER_STATUS_OUT_OF_BOUNDS_CURSOR,
-};
-typedef u32 M_Buffer_Status;
-
-void m_buffer_init(struct m_buffer *buffer, const struct m_buffer_info info);
-M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *dst, usz dst_cap, usz ammount);
-M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *dst, usz dst_cap, usz ammount);
-M_Buffer_Status m_buffer_set_cursor(struct m_buffer *buffer, usz pos);
-
 struct m_array {
     void    *data;
     usz     width;
@@ -93,6 +67,9 @@ struct m_array {
 #define M_ARRAY_INIT(buff, width, size) (struct m_array) { .data = buff, .width = width, .count = size, .cap = size, }
 #define M_ARRAY_ARG(...) M_ARRAY_INIT(__VA_ARGS__)
 #define M_ARRAY_REF(...) &M_ARRAY(__VA_ARGS__)
+
+#define M_ARRAY_FMT "{ .data = "PTR_FMT", .width = "USZ_FMT", .count = "USZ_FMT", .cap = "USZ_FMT", .dynamic = "B32_FMT" }"
+#define M_ARRAY_FMT_ARG(a) (a).data, (a).width, (a).count, (a).cap, (a).dynamic
 
 #define GENERIC_ARRAY_ENTRY_REF(a, s, i) ((u8 *)(a)+ ((s)*(i)))
 #define GENERIC_ARRAY_ENTRY(a, s, i) *GENERIC_ARRAY_ENTRY_REF(a, s, i)
@@ -172,4 +149,4 @@ M_Stack_Status m_stack_push_array(struct m_stack *stack, const struct m_array ar
 M_Stack_Status m_stack_delete(const struct m_stack stack);
 const char *m_stack_get_status_str(usz st);
 
-#endif /* __CORE_MEMORY_H__ */
+#endif /* CORE_MEMORY_H__ */

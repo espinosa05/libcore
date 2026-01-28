@@ -1,6 +1,8 @@
 #ifndef __CORE_STRINGS_H__
 #define __CORE_STRINGS_H__
 
+#include <core/memory.h>
+#include <core/buffer.h>
 #include <core/types.h>
 #include <core/utils.h>
 #include <core/cstd.h>
@@ -27,7 +29,7 @@ void str_builder_init(struct str_builder *sb, usz init_cap);
 Str_Builder_Status str_builder_append(struct str_builder *sb, char *str);
 void str_builder_to_cstr_alloc(const struct str_builder *sb, char **dst);
 void str_builder_delete(const struct str_builder sb);
-void str_builder_init_ext(struct str_builder *sb, char *buff, usz size);
+void str_builder_init_ext(struct str_builder *sb, const struct m_buffer buff);
 
 #define STR_NL  "\n"
 #define STR_TAB "\t"
@@ -36,6 +38,7 @@ void str_builder_init_ext(struct str_builder *sb, char *buff, usz size);
 #define STR_SYM_FMT(s) #s": %s"
 #define STR_SYM_ARG(s) STR_SYM(s)
 #define STR_SYM_MSG(s) STR_SYM_FMT(s) STR_SYM_ARG(s)
+#define STR_SYM_QUOT(s) "\""STR_SYM(s)"\""
 
 #define NULL_TERM_SIZE 1
 #define NULL_TERM_BUFF(s, n) (s)[n] = '\0'

@@ -27,6 +27,9 @@ static void reset_coredumps(void);
 static void platform_shutdown(void) __FUNC_ATTR_DESTRUCTOR__;
 static void platform_init(void) __FUNC_ATTR_CONSTRUCTOR__;
 static void register_core_signal_handlers(void) __FUNC_ATTR_CONSTRUCTOR__;
+static void core_empty_handler(int signum);
+static void set_linux_signal_handler(int signum, void (*handler) (int));
+
 /* static function declaration end */
 
 /* global data start */
@@ -38,7 +41,7 @@ static struct os_file __OS_StdIn;
 static struct os_file __OS_StdOut;
 static struct os_file __OS_StdErr;
 
-static struct rlimit initial_coredump_count = {0};
+//static struct rlimit initial_coredump_count = {0};
 /* global data end */
 
 void os_open_library(struct os_library *lib, const struct os_library_info info)
@@ -369,8 +372,13 @@ OS_File_Status os_file_close(struct os_file *f)
 {
     TODO("error handling");
     sz st = close(f->handle);
-    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "syscall close failed!");
+
+    if (!OS_LINUX_SYSCALL_SUCCESS(st))
+        return os_file_errno_to_status(st, OS_FILE_FUNC_CLOSE, errno);
+
     f->handle = OS_FILE_INVALID;
+
+    return OS_FILE_STATUS_SUCCESS;
 }
 
 void os_file_flush(const struct os_file *f)
@@ -758,20 +766,28 @@ static void os_file_init_proc_io_handles(void)
 
 static void set_coredumps(void)
 {
-    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(getrlimit(RLIMIT_CORE, &initial_coredump_count)),
-              "getrlimit failed!: %s", get_errno_str(errno));
-
-    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(setrlimuit);
+    IMPL();
 }
 
 static void reset_coredumps(void)
 {
-    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(setrlimit(RLIMIT_CORE, ));
+    IMPL();
 }
 
 static void register_core_signal_handlers(void)
 {
     set_linux_signal_handler(SIGINT,    core_empty_handler);
-    set_linux_signal_handler(SIGSEGV,   core_crash_handler);
-    set_linux_signal_handler(SIGABRT,   core_crash_handler);
+    set_linux_signal_handler(SIGSEGV,   core_empty_handler);
+    set_linux_signal_handler(SIGABRT,   core_empty_handler);
+}
+
+static void core_empty_handler(int signum)
+{
+    UNUSED(signum);
+    ABORT();
+}
+
+static void set_linux_signal_handler(int signum, void (*handler) (int))
+{
+    signal(signum, handler);
 }

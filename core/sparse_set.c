@@ -17,9 +17,10 @@ Sparse_Set_Status sparse_index_set_init(struct sparse_index_set *ss,
     return SPARSE_SET_STATUS_SUCCESS;
 }
 
-void sparse_index_set_swap(struct sparse_index_set *ss, u64 i, u64 j)
+Sparse_Set_Status sparse_index_set_swap(struct sparse_index_set *ss, usz i, usz j)
 {
     SWAP(ss->dense[j], ss->dense[i]);
+    return SPARSE_SET_STATUS_SUCCESS;
 }
 
 u64 sparse_index_set_get(const struct sparse_index_set *ss, u64 index)

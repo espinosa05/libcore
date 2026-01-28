@@ -43,6 +43,9 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 #define S32_MAX     (((1<<32)/2)-1)
 #define S64_MAX     (((1<<64)/2)-1)
 
+#define B32_FMT         "%s"
+#define B32_FMT_ARG(b)  (b) ? "TRUE" : "FALSE"
+
 #define SZ_FMT      "%"PRIi64   /* weird and hardcoded */
 #define USZ_FMT     "%"PRIu64   /* applies to this aswell */
 
@@ -63,6 +66,7 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 #define U32_X_FMT   "%08"PRIx32
 #define U64_X_FMT   "%016"PRIx64
 #define USZ_X_FMT   "%llx" /* special case without leading 0 */
+
 
 #define SZ_N_FMT(n)     "%"#n PRIi64   /* weird and hardcoded */
 #define USZ_N_FMT(n)    "%"#n PRIu64   /* applies to this aswell */

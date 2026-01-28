@@ -42,6 +42,13 @@ struct x64_gpr {
     u64 r15;
 };
 
+
+#define X64_GPR_R_REG_SIZE sizeof(u64)
+#define X64_GPR_EXTENDED_REG_SIZE sizeof(u32)
+#define X64_GPR_8086_REG_SIZE sizeof(u16)
+#define X64_GPR_8086_HI_REG_SIZE sizeof(u8)
+#define X64_GPR_8086_LO_REG_SIZE sizeof(u8)
+
 /* this was done by ChatGPT ... that was just too tedious */
 #define X64_GPR_RAX(gpr)    ((gpr).rax)
 #define X64_GPR_RBX(gpr)    ((gpr).rbx)
@@ -190,7 +197,12 @@ struct x64_gpr {
 enum cpuid_leaves {
     CPUID_FUNC_VENDOR_ID = 0,
 };
+#define CPUID_FUNC_BRAND_STRING_PART_1 0x80000002
+#define CPUID_FUNC_BRAND_STRING_PART_2 0x80000003
+#define CPUID_FUNC_BRAND_STRING_PART_3 0x80000004
+
 b32 x64_has_cpuid(void);
 void x64_cpuid(struct x64_gpr *regs);
+usz x64_get_brand_string(char *buff);
 
 #endif /* __CORE_IA64_H__ */

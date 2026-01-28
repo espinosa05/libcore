@@ -3,6 +3,7 @@
 
 #include <core/types.h>
 #include <core/memory.h>
+#include <core/ll.h>
 
 enum queue_status_codes {
     QUEUE_STATUS_SUCCESS = 0,

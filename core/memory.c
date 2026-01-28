@@ -1,4 +1,5 @@
 #include <core/memory.h>
+#include <core/buffer.h>
 #include <core/strings.h>
 #include <core/log.h>
 
@@ -39,6 +40,7 @@ void m_arena_destroy(struct m_arena *arena)
 
 void m_buffer_init(struct m_buffer *buffer, const struct m_buffer_info info)
 {
+    buffer->cursor = 0;
     buffer->base = info.buffer;
     buffer->size = info.size;
 }
@@ -99,8 +101,7 @@ void m_array_init_ext(struct m_array *array, const struct m_array_info info)
 void m_array_insert(struct m_array *array, usz index, void *element)
 {
     if (index > array->cap) {
-        ASSERT_RT(array->dynamic, "array out of memory!\n"M_ARRAY_FMT, M_ARRAY_FMT_ARG(ar);
-
+        ASSERT_RT(array->dynamic, "array out of memory!\n" M_ARRAY_FMT, M_ARRAY_FMT_ARG(*array));
         array->data = m_realloc(array->data, array->width, index + 1);
     }
 
@@ -233,40 +234,3 @@ const char *m_stack_get_status_str(usz st)
     return m_stack_status_strs[st];
 }
 
-M_Queue_Status m_queue_init_ext(struct m_queue *queue, const struct m_queue_info info)
-{
-    struct ll_double_info queue_list_info = {
-        .width = info.width,
-        .count = info.cap,
-        .arena = info.arena,
-    };
-    ll_double_init(&queue->data, queue_list_info);
-
-    return M_QUEUE_STATUS_SUCCESS;
-}
-
-M_Queue_Status m_queue_init(struct m_queue *queue, usz count, usz width)
-{
-    UNUSED(queue);
-    UNUSED(count);
-    UNUSED(width);
-    return M_QUEUE_STATUS_SUCCESS;
-}
-
-M_Queue_Status m_queue_add(struct m_queue *queue, void *element)
-{
-    ll_double_push(&queue->data, element);
-    return M_QUEUE_STATUS_SUCCESSS;
-}
-
-M_Queue_Status m_queue_drain(struct m_queue *queue, void *element)
-{
-    ll_double_remove_last(&queue->data, element);
-    return M_QUEUE_STATUS_SUCCESS;
-}
-
-M_Queue_Status m_queue_delete(struct m_queue *queue)
-{
-    ASSERT(queue->heap, "queue was not allocated on heap!");
-    m_free(queue->heap);
-}
