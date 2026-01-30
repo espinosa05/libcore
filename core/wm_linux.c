@@ -223,6 +223,7 @@ void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event
         event->key_event.type = WM_KEYBOARD_EVENT_TYPE_KEY_RELEASE;
         event->key_event.value = xcb_key_release_event->detail;
     } break;
+    case XCB_
     default: {
         INFO_LOG("processed xcb event -> 0x%x", event->event_type);
     } break;

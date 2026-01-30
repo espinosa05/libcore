@@ -40,7 +40,7 @@ int main(int argc, char **argv)
         .height         = 720,
         .x_pos          = X_POS_CENTERED,
         .y_pos          = Y_POS_CENTERED,
-        .force_size     = TRUE,
+        .force_size     = FALSE,
         .initial_title  = __FILE__,
     };
     WM_CALL(wm_window_create(&window_manager, &main_window, main_window_info));
@@ -93,6 +93,30 @@ static void handle_keyboard_event(struct wm *window_manager, struct wm_window *w
 
 static void handle_mouse_event(struct wm_mouse_event m_event)
 {
-
+    switch (m_event.type) {
+    case WM_MOUSE_EVENT_TYPE_BUTTON_PRESS:
+        INFO_LOG("mouse button ("USZ_FMT") pressed!"
+                 LOG_NL "x: "USZ_FMT
+                 LOG_NL "y: "USZ_FMT,
+                 m_event.value,
+                 m_event.x_pos,
+                 m_event.y_pos);
+        break;
+    case WM_MOUSE_EVENT_TYPE_BUTTON_RELEASE:
+        INFO_LOG("mouse button ("USZ_FMT") released!"
+                 LOG_NL "x: "USZ_FMT
+                 LOG_NL "y: "USZ_FMT,
+                 m_event.value,
+                 m_event.x_pos,
+                 m_event.y_pos);
+        break;
+    case WM_MOUSE_EVENT_TYPE_MOVEMENT:
+        INFO_LOG("mouse movement!"
+                 LOG_NL "x: "USZ_FMT
+                 LOG_NL "y: "USZ_FMT,
+                 m_event.x_pos,
+                 m_event.y_pos);
+        break;
+    }
 }
 

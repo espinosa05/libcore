@@ -87,7 +87,6 @@ struct wm_window_event {
     };
 };
 
-
 struct wm_keyboard_event {
     usz type;
     u64 value;
@@ -95,6 +94,9 @@ struct wm_keyboard_event {
 
 struct wm_mouse_event {
     usz type;
+    usz value;
+    usz x_pos;
+    usz y_pos;
 };
 
 struct wm_event {
