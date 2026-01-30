@@ -3,6 +3,7 @@
 
 #include <core/types.h>
 #include <core/platform.h>
+#include <core/buffer.h>
 
 #if defined(CORE_PLATFORM_LINUX)
 #include <xcb/xcb.h>
@@ -13,6 +14,7 @@ struct wm {
 };
 
 struct wm_window {
+    b32             should_close;
     xcb_window_t    xcb_window;
     xcb_gcontext_t  xcb_graphics_context;
 };
@@ -44,7 +46,6 @@ struct wm_window_info {
     const char  *initial_title;
 };
 
-
 WM_Status wm_init(struct wm *wm);
 WM_Status wm_shutdown(struct wm *wm);
 
@@ -54,7 +55,57 @@ void wm_window_hide(struct wm *wm, struct wm_window *win);
 void wm_window_change_title(struct wm *wm, struct wm_window *win, const char *title);
 void wm_window_force_size(struct wm *wm, struct wm_window *win, usz width, usz height);
 WM_Status wm_window_close(struct wm *wm, struct wm_window *win);
-
-
 const char *wm_get_status_string(usz status);
+
+enum wm_event_types {
+    WM_EVENT_EMPTY_QUEUE = 0,
+    WM_EVENT_TYPE_WINDOW,
+    WM_EVENT_TYPE_KEYBOARD,
+    WM_EVENT_TYPE_MOUSE,
+};
+
+enum wm_keyboard_event_types {
+    WM_KEYBOARD_EVENT_TYPE_KEY_PRESS,
+    WM_KEYBOARD_EVENT_TYPE_KEY_RELEASE,
+};
+
+enum wm_window_event_types {
+    WM_WINDOW_EVENT_TYPE_EXPOSE,
+};
+
+struct wm_window_expose_event {
+    usz x;
+    usz y;
+    usz width;
+    usz height;
+};
+
+struct wm_window_event {
+    usz type;
+    union {
+        struct wm_window_expose_event expose;
+    };
+};
+
+
+struct wm_keyboard_event {
+    usz type;
+    u64 value;
+};
+
+struct wm_mouse_event {
+    usz type;
+};
+
+struct wm_event {
+    usz event_type;
+    union {
+        struct wm_window_event window_event;
+        struct wm_keyboard_event key_event;
+        struct wm_mouse_event mouse_event;
+    };
+};
+
+void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event *event);
+
 #endif /* __CORE_WM_H__ */

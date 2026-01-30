@@ -23,12 +23,25 @@ struct sparse_set_info {
 enum sparse_set_status_codes {
     SPARSE_SET_STATUS_SUCCESS = 0,
 
+    SPARSE_SET_STATUS_UNKNOWN,
     SPARSE_SET_STATUS_COUNT,
 };
 typedef usz Sparse_Set_Status;
 
+#define SPARSE_SET_CALL(c)                                                      \
+    MACRO_START                                                                 \
+        usz st = (c);                                                           \
+        if (UNLIKELY(st != SPARSE_SET_STATUS_SUCCESS)) {                        \
+            F_LOG_T(OS_STDERR, "SPARSE_SET_CALL: call to '"#c"' failed : %s",   \
+                               sparse_set_string_status(st));                   \
+            F_LOG(OS_STDERR, "\n");                                             \
+            ABORT();                                                            \
+        }                                                                       \
+    MACRO_END
+
 Sparse_Set_Status sparse_index_set_init(struct sparse_index_set *ss, const struct sparse_set_info info);
 Sparse_Set_Status sparse_index_set_swap(struct sparse_index_set *ss, usz i, usz j);
 u64 sparse_index_set_get(const struct sparse_index_set *ss, u64 index);
+char *sparse_set_string_status(usz status);
 
 #endif /* __CORE_SPARSE_SET_H__ */

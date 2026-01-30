@@ -1,5 +1,6 @@
 #ifndef __CORE_M_BUFFER_H__
 #define __CORE_M_BUFFER_H__
+
 #define M_BUFFER(...) (struct m_buffer) { __VA_ARGS__ }
 #define M_BUFFER_REF(...) &M_BUFFER(__VA_ARGS__)
 

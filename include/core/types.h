@@ -8,6 +8,7 @@
 #include <stdarg.h>
 
 typedef ptrdiff_t   sz;
+typedef sz          ssz;
 typedef size_t      usz;
 
 typedef uint8_t     u8;
@@ -32,21 +33,25 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 #define U16_MIN     0
 #define U32_MIN     0
 #define U64_MIN     0
+#define USZ_MIN     0
 
 #define U8_MAX      255U
 #define U16_MAX     65535U
 #define U32_MAX     4294967295UL
 #define U64_MAX     18446744073709551615ULL
+#define USZ_MAX     ((1<<sizeof(usz)*8))
 
-#define S8_MAX      (((1<<8)/2)-1)
-#define S16_MAX     (((1<<16)/2)-1)
-#define S32_MAX     (((1<<32)/2)-1)
-#define S64_MAX     (((1<<64)/2)-1)
+#define S8_MAX      (((1<<sizeof(s8)*8)/2)-1)
+#define S16_MAX     (((1<<sizeof(s16)*8)/2)-1)
+#define S32_MAX     (((1<<sizeof(s32)*8)/2)-1)
+#define S64_MAX     (((1<<sizeof(s64)*8)/2)-1)
+#define SSZ_MAX     (((1<<sizeof(ssz)*8)/2)-1)
 
 #define B32_FMT         "%s"
 #define B32_FMT_ARG(b)  (b) ? "TRUE" : "FALSE"
 
 #define SZ_FMT      "%"PRIi64   /* weird and hardcoded */
+#define SSZ_FMT     SZ_FMT
 #define USZ_FMT     "%"PRIu64   /* applies to this aswell */
 
 #define PTR_FMT     "%"PRIuPTR
@@ -69,6 +74,7 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 
 
 #define SZ_N_FMT(n)     "%"#n PRIi64   /* weird and hardcoded */
+#define SSZ_N_FMT(n)    "%"#n PRIi64   /* weird and hardcoded */
 #define USZ_N_FMT(n)    "%"#n PRIu64   /* applies to this aswell */
 
 #define PTR_N_FMT(n)    "%"#n PRIuPTR
@@ -86,6 +92,7 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 #define TYPE_ARRAY_ELEMENT(a, i, ...) ((__VA_ARGS__)(a)[(i)])
 
 #define SZ_ARRAY_ELEMENT(a, i)      TYPE_ARRAY_ELEMENT(a, i, sz)
+#define SSZ_ARRAY_ELEMENT(a, i)     TYPE_ARRAY_ELEMENT(a, i, ssz)
 #define USZ_ARRAY_ELEMENT(a, i)     TYPE_ARRAY_ELEMENT(a, i, usz)
 
 #define S8_ARRAY_ELEMENT(a, i)      TYPE_ARRAY_ELEMENT(a, i, s8)

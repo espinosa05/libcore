@@ -1,4 +1,5 @@
 #include <core/wm.h>
+#include <core/log.h>
 #include <core/wm_vulkan.h>
 #include <core/utils.h>
 #include <core/memory.h>
@@ -64,6 +65,11 @@ WM_Status wm_window_create(struct wm *wm, struct wm_window *win, struct wm_windo
 
     if (info.force_size)
         wm_window_force_size(wm, win, info.width, info.height);
+
+    u32 event_values[] = { XCB_EVENT_MASK_EXPOSURE, XCB_EVENT_MASK_KEY_PRESS, XCB_EVENT_MASK_KEY_RELEASE, };
+    xcb_change_window_attributes(wm->xcb_connection, win->xcb_window, XCB_CW_EVENT_MASK, event_values);
+
+    xcb_flush(wm->xcb_connection);
 
     return WM_STATUS_SUCCESS;
 }
@@ -174,6 +180,54 @@ WM_Surface_Status wm_surface_create(struct wm_surface *surface, const struct wm_
     }
 
     return WM_SURFACE_STATUS_SUCCESS;
+}
+
+#define GET_XCB_RESPONSE_TYPE(e) ((e)->response_type & ~0x80)
+void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event *event)
+{
+    CHECK_NULL(wm);
+    CHECK_NULL(win);
+    CHECK_NULL(event);
+
+    xcb_generic_event_t *xcb_event = xcb_poll_for_event(wm->xcb_connection);
+    if (!xcb_event) {
+        event->event_type = WM_EVENT_EMPTY_QUEUE;
+        return;
+    }
+
+    INFO_LOG("xcb_event->response_type: %d", GET_XCB_RESPONSE_TYPE(xcb_event));
+
+    switch (GET_XCB_RESPONSE_TYPE(xcb_event)) {
+    case XCB_EXPOSE: {
+        xcb_expose_event_t *xcb_expose_event = (xcb_expose_event_t *)xcb_event;
+        if (xcb_expose_event->count != 0) {
+            break;
+        }
+        event->event_type = WM_EVENT_TYPE_WINDOW;
+        event->window_event.type = WM_WINDOW_EVENT_TYPE_EXPOSE;
+        event->window_event.expose.x = xcb_expose_event->x;
+        event->window_event.expose.y = xcb_expose_event->y;
+        event->window_event.expose.width = xcb_expose_event->width;
+        event->window_event.expose.height = xcb_expose_event->height;
+    } break;
+    case XCB_KEY_PRESS: {
+        xcb_key_press_event_t *xcb_key_press_event = (xcb_key_press_event_t *)xcb_event;
+        event->event_type = WM_EVENT_TYPE_KEYBOARD;
+        event->key_event.type = WM_KEYBOARD_EVENT_TYPE_KEY_PRESS;
+        event->key_event.value = xcb_key_press_event->detail;
+    } break;
+    case XCB_KEY_RELEASE: {
+        xcb_key_release_event_t *xcb_key_release_event = (xcb_key_release_event_t *)xcb_event;
+        event->event_type = WM_EVENT_TYPE_KEYBOARD;
+        event->key_event.type = WM_KEYBOARD_EVENT_TYPE_KEY_RELEASE;
+        event->key_event.value = xcb_key_release_event->detail;
+    } break;
+    default: {
+        INFO_LOG("processed xcb event -> 0x%x", event->event_type);
+    } break;
+    }
+
+    m_free(xcb_event);
 }
 
 static const char *wm_status_str[] = {

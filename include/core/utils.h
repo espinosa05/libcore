@@ -55,11 +55,11 @@
         ABORT();                                                        \
     MACRO_END
 
-#define UNREACHABLE()                                           \
-    MACRO_START                                                 \
-        BUILTIN_UNREACHABLE();                                  \
-        F_LOG_T(OS_STDERR, "UNREACHABLE", ANSI_COLOR_RED, LOC_FMT, LOC_ARG); \
-        ABORT();                                                \
+#define UNREACHABLE()                                                           \
+    MACRO_START                                                                 \
+        BUILTIN_UNREACHABLE();                                                  \
+        F_LOG_T(OS_STDERR, "UNREACHABLE", ANSI_COLOR_RED, LOC_FMT, LOC_ARG);    \
+        ABORT();                                                                \
     MACRO_END
 
 #define SWAP(a, b)          \

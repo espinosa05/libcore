@@ -29,4 +29,16 @@ u64 sparse_index_set_get(const struct sparse_index_set *ss, u64 index)
     return ss->dense[ss->sparse[index]];
 }
 
+static char *sparse_set_status_strings[] = {
+    ENUM_STR_ENTRY(SPARSE_SET_STATUS_SUCCESS),
+    ENUM_STR_ENTRY(SPARSE_SET_STATUS_UNKNOWN),
+};
 
+char *sparse_set_string_status(usz status)
+{
+    if (status >= SPARSE_SET_STATUS_COUNT) {
+        status = SPARSE_SET_STATUS_UNKNOWN;
+    }
+
+    return sparse_set_status_strings[status];
+}

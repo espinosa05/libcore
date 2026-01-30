@@ -5,6 +5,7 @@
 #include <core/utils.h>
 #include <core/os_streams.h>
 #include <core/os_thread.h>
+#include <core/platform.h>
 enum os_exit_codes {
     OS_EXIT_SUCCESS = 0,
     OS_EXIT_FAILURE = 1,
