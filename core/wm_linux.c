@@ -66,8 +66,9 @@ WM_Status wm_window_create(struct wm *wm, struct wm_window *win, struct wm_windo
     if (info.force_size)
         wm_window_force_size(wm, win, info.width, info.height);
 
-    u32 event_values[] = { XCB_EVENT_MASK_EXPOSURE, XCB_EVENT_MASK_KEY_PRESS, XCB_EVENT_MASK_KEY_RELEASE, };
+    u32 event_values[] = { XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE };
     xcb_change_window_attributes(wm->xcb_connection, win->xcb_window, XCB_CW_EVENT_MASK, event_values);
+    //xcb_set_input_focus(wm->xcb_connection, XCB_INPUT_FOCUS_POINTER_ROOT, win->xcb_window, XCB_CURRENT_TIME);
 
     xcb_flush(wm->xcb_connection);
 

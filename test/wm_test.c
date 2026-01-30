@@ -80,7 +80,7 @@ static void handle_keyboard_event(struct wm *window_manager, struct wm_window *w
 {
     switch (k_event.type) {
     case WM_KEYBOARD_EVENT_TYPE_KEY_PRESS:
-        if (k_event.value == 27) {
+        if (k_event.value == 9) {
             window->should_close = TRUE;
         } else {
             INFO_LOG("key pressed : %d", k_event.value);
