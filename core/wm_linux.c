@@ -36,6 +36,10 @@ WM_Status wm_shutdown(struct wm *wm)
 
 WM_Status wm_window_create(struct wm *wm, struct wm_window *win, struct wm_window_info info)
 {
+    enum { BACK_PIXEL_VALUES = 0, EVENT_MASK_VALUES = 1, MASK_VALUE_COUNT, };
+    u32 mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
+    u32 values[MASK_VALUE_COUNT] = {0};
+
 
     if (info.x_pos == X_POS_CENTERED)
         info.x_pos = wm->xcb_screen->width_in_pixels;
@@ -66,9 +70,17 @@ WM_Status wm_window_create(struct wm *wm, struct wm_window *win, struct wm_windo
     if (info.force_size)
         wm_window_force_size(wm, win, info.width, info.height);
 
-    u32 event_values[] = { XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE };
-    xcb_change_window_attributes(wm->xcb_connection, win->xcb_window, XCB_CW_EVENT_MASK, event_values);
-    //xcb_set_input_focus(wm->xcb_connection, XCB_INPUT_FOCUS_POINTER_ROOT, win->xcb_window, XCB_CURRENT_TIME);
+    values[BACK_PIXEL_VALUES] = wm->xcb_screen->black_pixel;
+    values[EVENT_MASK_VALUES] = XCB_EVENT_MASK_EXPOSURE
+                                | XCB_EVENT_MASK_BUTTON_PRESS
+                                | XCB_EVENT_MASK_BUTTON_RELEASE
+                                | XCB_EVENT_MASK_POINTER_MOTION
+                                | XCB_EVENT_MASK_ENTER_WINDOW
+                                | XCB_EVENT_MASK_LEAVE_WINDOW
+                                | XCB_EVENT_MASK_KEY_PRESS
+                                | XCB_EVENT_MASK_KEY_RELEASE;
+
+    xcb_change_window_attributes(wm->xcb_connection, win->xcb_window, mask, values);
 
     xcb_flush(wm->xcb_connection);
 
@@ -144,6 +156,37 @@ void wm_window_force_size(struct wm *wm, struct wm_window *win, usz width, usz h
     xcb_icccm_set_wm_size_hints(wm->xcb_connection, win->xcb_window, XCB_ATOM_WM_NORMAL_HINTS, &size_hints);
 }
 
+void wm_window_grab_mouse(struct wm *wm, struct wm_window *win)
+{
+    xcb_grab_pointer_cookie_t cookie;
+    xcb_grab_pointer_reply_t *reply;
+
+    cookie = xcb_grab_pointer(wm->xcb_connection,
+                              FALSE,
+                              win->xcb_window,
+                              XCB_EVENT_MASK_BUTTON_PRESS |
+                              XCB_EVENT_MASK_BUTTON_RELEASE |
+                              XCB_EVENT_MASK_POINTER_MOTION,
+                              XCB_GRAB_MODE_ASYNC,
+                              XCB_GRAB_MODE_ASYNC,
+                              XCB_NONE,
+                              XCB_NONE,
+                              XCB_CURRENT_TIME);
+
+    reply = xcb_grab_pointer_reply(wm->xcb_connection, cookie, NULL);
+    m_free(reply);
+
+    xcb_flush(wm->xcb_connection);
+}
+
+void wm_window_release_mouse(struct wm *wm, struct wm_window *win)
+{
+    UNUSED(win);
+    xcb_ungrab_pointer(wm->xcb_connection, XCB_CURRENT_TIME);
+    xcb_flush(wm->xcb_connection);
+}
+
+
 WM_Status wm_window_close(struct wm *wm, struct wm_window *win)
 {
     xcb_destroy_window(wm->xcb_connection, win->xcb_window);
@@ -196,9 +239,42 @@ void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event
         return;
     }
 
-    INFO_LOG("xcb_event->response_type: %d", GET_XCB_RESPONSE_TYPE(xcb_event));
-
     switch (GET_XCB_RESPONSE_TYPE(xcb_event)) {
+    case XCB_BUTTON_PRESS: {
+        xcb_button_press_event_t *xcb_button_press_event = (xcb_button_press_event_t *)xcb_event;
+        event->event_type = WM_EVENT_TYPE_MOUSE;
+        event->mouse_event.type = WM_MOUSE_EVENT_TYPE_PRESS;
+        event->mouse_event.x_pos = xcb_button_press_event->event_x;
+        event->mouse_event.y_pos = xcb_button_press_event->event_y;
+    } break;
+    case XCB_BUTTON_RELEASE: {
+        xcb_button_press_event_t *xcb_button_press_event = (xcb_button_press_event_t *)xcb_event;
+        event->event_type = WM_EVENT_TYPE_MOUSE;
+        event->mouse_event.type = WM_MOUSE_EVENT_TYPE_RELEASE;
+        event->mouse_event.x_pos = xcb_button_press_event->event_x;
+        event->mouse_event.y_pos = xcb_button_press_event->event_y;
+    } break;
+    case XCB_ENTER_NOTIFY: {
+        xcb_enter_notify_event_t *xcb_enter_notify_event = (xcb_enter_notify_event_t *)xcb_event;
+        event->event_type = WM_EVENT_TYPE_MOUSE;
+        event->mouse_event.type = WM_MOUSE_EVENT_TYPE_ENTER;
+        event->mouse_event.x_pos = xcb_enter_notify_event->event_x;
+        event->mouse_event.y_pos = xcb_enter_notify_event->event_y;
+    } break;
+    case XCB_LEAVE_NOTIFY: {
+        xcb_leave_notify_event_t *xcb_leave_notify_event = (xcb_leave_notify_event_t *)xcb_event;
+        event->event_type = WM_EVENT_TYPE_MOUSE;
+        event->mouse_event.type = WM_MOUSE_EVENT_TYPE_LEAVE;
+        event->mouse_event.x_pos = xcb_leave_notify_event->event_x;
+        event->mouse_event.y_pos = xcb_leave_notify_event->event_y;
+    } break;
+    case XCB_MOTION_NOTIFY: {
+        xcb_motion_notify_event_t *xcb_motion_notify_event = (xcb_motion_notify_event_t *)xcb_event;
+        event->event_type = WM_EVENT_TYPE_MOUSE;
+        event->mouse_event.type = WM_MOUSE_EVENT_TYPE_MOTION;
+        event->mouse_event.x_pos = xcb_motion_notify_event->event_x;
+        event->mouse_event.y_pos = xcb_motion_notify_event->event_y;
+    } break;
     case XCB_EXPOSE: {
         xcb_expose_event_t *xcb_expose_event = (xcb_expose_event_t *)xcb_event;
         if (xcb_expose_event->count != 0) {
@@ -223,9 +299,8 @@ void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event
         event->key_event.type = WM_KEYBOARD_EVENT_TYPE_KEY_RELEASE;
         event->key_event.value = xcb_key_release_event->detail;
     } break;
-    case XCB_
     default: {
-        INFO_LOG("processed xcb event -> 0x%x", event->event_type);
+        // empty
     } break;
     }
 

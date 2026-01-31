@@ -19,7 +19,6 @@ struct wm_window {
     xcb_gcontext_t  xcb_graphics_context;
 };
 
-
 #elif defined(CORE_PLATFORM_WINDOWS)
 #error "windows not supported yet"
 #endif /* CORE_PLATFOMR_LINUX */
@@ -54,6 +53,8 @@ void wm_window_show(struct wm *wm, struct wm_window *win);
 void wm_window_hide(struct wm *wm, struct wm_window *win);
 void wm_window_change_title(struct wm *wm, struct wm_window *win, const char *title);
 void wm_window_force_size(struct wm *wm, struct wm_window *win, usz width, usz height);
+void wm_window_grab_mouse(struct wm *wm, struct wm_window *win);
+void wm_window_release_mouse(struct wm *wm, struct wm_window *win);
 WM_Status wm_window_close(struct wm *wm, struct wm_window *win);
 const char *wm_get_status_string(usz status);
 
@@ -67,6 +68,14 @@ enum wm_event_types {
 enum wm_keyboard_event_types {
     WM_KEYBOARD_EVENT_TYPE_KEY_PRESS,
     WM_KEYBOARD_EVENT_TYPE_KEY_RELEASE,
+};
+
+enum wm_mouse_event_types {
+    WM_MOUSE_EVENT_TYPE_PRESS,
+    WM_MOUSE_EVENT_TYPE_RELEASE,
+    WM_MOUSE_EVENT_TYPE_ENTER,
+    WM_MOUSE_EVENT_TYPE_LEAVE,
+    WM_MOUSE_EVENT_TYPE_MOTION,
 };
 
 enum wm_window_event_types {
@@ -90,6 +99,14 @@ struct wm_window_event {
 struct wm_keyboard_event {
     usz type;
     u64 value;
+};
+
+enum mouse_buttons {
+    WM_MOUSE_BUTTON_LEFT = 1,
+    WM_MOUSE_BUTTON_MIDDLE = 2,
+    WM_MOUSE_BUTTON_RIGHT = 3,
+    WM_MOUSE_BUTTON_SCROLL_UP = 4,
+    WM_MOUSE_BUTTON_SCROLL_DOWN = 5,
 };
 
 struct wm_mouse_event {
