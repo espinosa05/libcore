@@ -107,6 +107,8 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 
 #define STR_ARRAY_ELEMENT(a, i)     TYPE_ARRAY_ELEMENT(a, i, cstr_t)
 
+#define CHAR_FMT    "%c"
+
 #define STR_FMT     "%s"
 #define STR_QUOT(s) "\"" s "\""
 

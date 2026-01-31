@@ -15,10 +15,12 @@ WM_Status wm_init(struct wm *wm)
     xcb_setup_t             *xcb_setup;
     xcb_screen_iterator_t   xcb_screens;
 
-    wm->xcb_connection   = xcb_connect(NULL, NULL);
-    xcb_setup            = (xcb_setup_t *)xcb_get_setup(wm->xcb_connection);
-    xcb_screens          = xcb_setup_roots_iterator(xcb_setup);
-    wm->xcb_screen       = xcb_screens.data;
+    wm->xcb_connection  = xcb_connect(NULL, NULL);
+    xcb_setup           = (xcb_setup_t *)xcb_get_setup(wm->xcb_connection);
+    xcb_screens         = xcb_setup_roots_iterator(xcb_setup);
+    wm->xcb_screen      = xcb_screens.data;
+
+    wm->xcb_keymap      = xcb_key_symbols_alloc(wm->xcb_connection);
 
     return WM_STATUS_SUCCESS;
 }
@@ -26,6 +28,7 @@ WM_Status wm_init(struct wm *wm)
 WM_Status wm_shutdown(struct wm *wm)
 {
     xcb_disconnect(wm->xcb_connection);
+    xcb_key_symbols_free(wm->xcb_keymap);
 
     return WM_STATUS_SUCCESS;
 }
@@ -81,7 +84,6 @@ WM_Status wm_window_create(struct wm *wm, struct wm_window *win, struct wm_windo
                                 | XCB_EVENT_MASK_KEY_RELEASE;
 
     xcb_change_window_attributes(wm->xcb_connection, win->xcb_window, mask, values);
-
     xcb_flush(wm->xcb_connection);
 
     return WM_STATUS_SUCCESS;
@@ -246,6 +248,7 @@ void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event
         event->mouse_event.type = WM_MOUSE_EVENT_TYPE_PRESS;
         event->mouse_event.x_pos = xcb_button_press_event->event_x;
         event->mouse_event.y_pos = xcb_button_press_event->event_y;
+        event->mouse_event.value = xcb_button_press_event->detail;
     } break;
     case XCB_BUTTON_RELEASE: {
         xcb_button_press_event_t *xcb_button_press_event = (xcb_button_press_event_t *)xcb_event;
@@ -253,6 +256,7 @@ void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event
         event->mouse_event.type = WM_MOUSE_EVENT_TYPE_RELEASE;
         event->mouse_event.x_pos = xcb_button_press_event->event_x;
         event->mouse_event.y_pos = xcb_button_press_event->event_y;
+        event->mouse_event.value = xcb_button_press_event->detail;
     } break;
     case XCB_ENTER_NOTIFY: {
         xcb_enter_notify_event_t *xcb_enter_notify_event = (xcb_enter_notify_event_t *)xcb_event;
@@ -291,13 +295,13 @@ void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event
         xcb_key_press_event_t *xcb_key_press_event = (xcb_key_press_event_t *)xcb_event;
         event->event_type = WM_EVENT_TYPE_KEYBOARD;
         event->key_event.type = WM_KEYBOARD_EVENT_TYPE_KEY_PRESS;
-        event->key_event.value = xcb_key_press_event->detail;
+        event->key_event.value = xcb_key_symbols_get_keysym(wm->xcb_keymap, xcb_key_press_event->detail, 0);
     } break;
     case XCB_KEY_RELEASE: {
         xcb_key_release_event_t *xcb_key_release_event = (xcb_key_release_event_t *)xcb_event;
         event->event_type = WM_EVENT_TYPE_KEYBOARD;
         event->key_event.type = WM_KEYBOARD_EVENT_TYPE_KEY_RELEASE;
-        event->key_event.value = xcb_key_release_event->detail;
+        event->key_event.value = xcb_key_symbols_get_keysym(wm->xcb_keymap, xcb_key_release_event->detail, 0);
     } break;
     default: {
         // empty

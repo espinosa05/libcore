@@ -7,10 +7,16 @@
 
 #if defined(CORE_PLATFORM_LINUX)
 #include <xcb/xcb.h>
+#include <xcb/xcb_keysyms.h>
+
+#define XK_LATIN1
+#define XK_MISCELLANY
+#include <X11/keysymdef.h>
 
 struct wm {
     xcb_connection_t    *xcb_connection;
     xcb_screen_t        *xcb_screen;
+    xcb_key_symbols_t   *xcb_keymap;
 };
 
 struct wm_window {
@@ -96,9 +102,40 @@ struct wm_window_event {
     };
 };
 
+enum key_symbols {
+    WM_KEYSYM_SPACE = XK_space,
+    WM_KEYSYM_ESC = XK_Escape,
+    WM_KEYSYM_A = XK_a,
+    WM_KEYSYM_B = XK_b,
+    WM_KEYSYM_C = XK_c,
+    WM_KEYSYM_D = XK_d,
+    WM_KEYSYM_E = XK_e,
+    WM_KEYSYM_F = XK_f,
+    WM_KEYSYM_G = XK_g,
+    WM_KEYSYM_H = XK_h,
+    WM_KEYSYM_I = XK_i,
+    WM_KEYSYM_J = XK_j,
+    WM_KEYSYM_K = XK_k,
+    WM_KEYSYM_L = XK_l,
+    WM_KEYSYM_M = XK_m,
+    WM_KEYSYM_N = XK_n,
+    WM_KEYSYM_O = XK_o,
+    WM_KEYSYM_P = XK_p,
+    WM_KEYSYM_Q = XK_q,
+    WM_KEYSYM_R = XK_r,
+    WM_KEYSYM_S = XK_s,
+    WM_KEYSYM_T = XK_t,
+    WM_KEYSYM_U = XK_u,
+    WM_KEYSYM_V = XK_v,
+    WM_KEYSYM_W = XK_w,
+    WM_KEYSYM_X = XK_x,
+    WM_KEYSYM_Y = XK_y,
+    WM_KEYSYM_Z = XK_z,
+};
+
 struct wm_keyboard_event {
     usz type;
-    u64 value;
+    u64 value; /* maybe unsafe but who cares */
 };
 
 enum mouse_buttons {
