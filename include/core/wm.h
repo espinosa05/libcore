@@ -62,7 +62,6 @@ void wm_window_force_size(struct wm *wm, struct wm_window *win, usz width, usz h
 void wm_window_grab_mouse(struct wm *wm, struct wm_window *win);
 void wm_window_release_mouse(struct wm *wm, struct wm_window *win);
 WM_Status wm_window_close(struct wm *wm, struct wm_window *win);
-const char *wm_get_status_string(usz status);
 
 enum wm_event_types {
     WM_EVENT_EMPTY_QUEUE = 0,
@@ -104,33 +103,48 @@ struct wm_window_event {
 
 enum key_symbols {
     WM_KEYSYM_SPACE = XK_space,
-    WM_KEYSYM_ESC = XK_Escape,
-    WM_KEYSYM_A = XK_a,
-    WM_KEYSYM_B = XK_b,
-    WM_KEYSYM_C = XK_c,
-    WM_KEYSYM_D = XK_d,
-    WM_KEYSYM_E = XK_e,
-    WM_KEYSYM_F = XK_f,
-    WM_KEYSYM_G = XK_g,
-    WM_KEYSYM_H = XK_h,
-    WM_KEYSYM_I = XK_i,
-    WM_KEYSYM_J = XK_j,
-    WM_KEYSYM_K = XK_k,
-    WM_KEYSYM_L = XK_l,
-    WM_KEYSYM_M = XK_m,
-    WM_KEYSYM_N = XK_n,
-    WM_KEYSYM_O = XK_o,
-    WM_KEYSYM_P = XK_p,
-    WM_KEYSYM_Q = XK_q,
-    WM_KEYSYM_R = XK_r,
-    WM_KEYSYM_S = XK_s,
-    WM_KEYSYM_T = XK_t,
-    WM_KEYSYM_U = XK_u,
-    WM_KEYSYM_V = XK_v,
-    WM_KEYSYM_W = XK_w,
-    WM_KEYSYM_X = XK_x,
-    WM_KEYSYM_Y = XK_y,
-    WM_KEYSYM_Z = XK_z,
+
+    WM_KEYSYM_A     = XK_a,
+    WM_KEYSYM_B     = XK_b,
+    WM_KEYSYM_C     = XK_c,
+    WM_KEYSYM_D     = XK_d,
+    WM_KEYSYM_E     = XK_e,
+    WM_KEYSYM_F     = XK_f,
+    WM_KEYSYM_G     = XK_g,
+    WM_KEYSYM_H     = XK_h,
+    WM_KEYSYM_I     = XK_i,
+    WM_KEYSYM_J     = XK_j,
+    WM_KEYSYM_K     = XK_k,
+    WM_KEYSYM_L     = XK_l,
+    WM_KEYSYM_M     = XK_m,
+    WM_KEYSYM_N     = XK_n,
+    WM_KEYSYM_O     = XK_o,
+    WM_KEYSYM_P     = XK_p,
+    WM_KEYSYM_Q     = XK_q,
+    WM_KEYSYM_R     = XK_r,
+    WM_KEYSYM_S     = XK_s,
+    WM_KEYSYM_T     = XK_t,
+    WM_KEYSYM_U     = XK_u,
+    WM_KEYSYM_V     = XK_v,
+    WM_KEYSYM_W     = XK_w,
+    WM_KEYSYM_X     = XK_x,
+    WM_KEYSYM_Y     = XK_y,
+    WM_KEYSYM_Z     = XK_z,
+
+    WM_KEYSYM_BACKSPACE = XK_BackSpace,
+    WM_KEYSYM_TAB       = XK_Tab,
+    WM_KEYSYM_ENTER     = XK_Return,
+    WM_KEYSYM_ESC       = XK_Escape,
+
+    WM_KEYSYM_SHIFT_L   = XK_Shift_L,
+    WM_KEYSYM_SHIFT_R   = XK_Shift_R,
+    WM_KEYSYM_CTRL_L    = XK_Control_L,
+    WM_KEYSYM_CTRL_R    = XK_Control_R,
+    WM_KEYSYM_CAPS_LOCK = XK_Caps_Lock,
+    WM_KEYSYM_ALT_L     = XK_Alt_L,
+    WM_KEYSYM_ALT_R     = XK_Alt_R,
+    WM_KEYSYM_SUPER_L   = XK_Super_L,
+    WM_KEYSYM_SUPER_R   = XK_Super_R,
 };
 
 struct wm_keyboard_event {
