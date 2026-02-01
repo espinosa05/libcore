@@ -4,8 +4,11 @@
 #include <core/log.h>
 #include <core/wm.h>
 #include <core/wm_utils.h>
+#include <core/wm_vulkan.h>
 #include <core/cstd.h>
 #include <core/macros.h>
+
+#include <kiek/kiek_vulkan_backend.h>
 
 /* static function declaration start */
 static void handle_window_event(struct wm *window_manager, struct wm_window *window, struct wm_window_event w_event);
@@ -28,6 +31,26 @@ int main(int argc, char **argv)
         .initial_title  = __FILE__,
     };
     WM_CALL(wm_window_create(&window_manager, &main_window, main_window_info));
+
+    struct wm_vulkan_extensions extensions = {0};
+    wm_vulkan_extensions_get_required(&extensions);
+
+    struct kiek_vulkan_context renderer = {0};
+    struct kiek_vulkan_context_info renderer_info = {
+        .version    = KIEK_APP_VERSION_HEADER_REF(0, 0, 1),
+        .app_name   = __FILE__,
+        .extensions = &extensions,
+    };
+    kiek_vulkan_startup(&renderer, renderer_info);
+
+    struct wm_vulkan_surface surface = {0};
+    struct wm_vulkan_surface_info surface_info = {
+        .wm         = &window_manager,
+        .win        = &main_window,
+        .instance   = kiek_vulkan_get_instance(renderer),
+    };
+    wm_vulkan_surface_create(&surface, surface_info);
+
     wm_window_show(&window_manager, &main_window);
 
     while (!main_window.should_close) {
@@ -47,6 +70,7 @@ int main(int argc, char **argv)
         }
     }
 
+    kiek_vulkan_shutdown(&renderer);
     WM_CALL(wm_window_close(&window_manager, &main_window));
     WM_CALL(wm_shutdown(&window_manager));
 
@@ -55,40 +79,15 @@ int main(int argc, char **argv)
 
 static void handle_window_event(struct wm *window_manager, struct wm_window *window, struct wm_window_event w_event)
 {
-    INFO_LOG(STR_QUOT(STR_FMT), get_wm_window_event_type_str(w_event.type));
+
 }
 
 static void handle_keyboard_event(struct wm *window_manager, struct wm_window *window, struct wm_keyboard_event k_event)
 {
-    INFO_LOG(STR_QUOT(STR_FMT), get_wm_keyboard_event_type_str(k_event.type));
-    INFO_LOG("key_code: "USZ_FMT, k_event.value);
-    INFO_LOG("key_value: "STR_FMT, get_wm_keyboard_event_value_str(k_event.value));
-    switch (k_event.type) {
-    case WM_KEYBOARD_EVENT_TYPE_KEY_PRESS:
-        switch (k_event.value) {
-        case WM_KEYSYM_ESC:
-        case WM_KEYSYM_Q:
-            window->should_close = TRUE;
-        }
-        break;
-    case WM_KEYBOARD_EVENT_TYPE_KEY_RELEASE:
-        break;
-    }
+
 }
 
 static void handle_mouse_event(struct wm_mouse_event m_event)
 {
-    INFO_LOG(STR_QUOT(STR_FMT), get_wm_mouse_event_type_str(m_event.type));
-    INFO_LOG("x: "USZ_FMT, m_event.x_pos);
-    INFO_LOG("y: "USZ_FMT, m_event.y_pos);
 
-    switch (m_event.type) {
-    case WM_MOUSE_EVENT_TYPE_PRESS:
-    case WM_MOUSE_EVENT_TYPE_RELEASE:
-        INFO_LOG("button_nr :"USZ_FMT, m_event.value);
-        INFO_LOG("button :"STR_FMT, get_wm_mouse_button_str(m_event.value));
-        break;
-    case WM_MOUSE_EVENT_TYPE_MOTION:
-        break;
-    }
 }

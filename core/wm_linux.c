@@ -1,6 +1,5 @@
 #include <core/wm.h>
 #include <core/log.h>
-#include <core/wm_vulkan.h>
 #include <core/utils.h>
 #include <core/memory.h>
 
@@ -195,37 +194,6 @@ WM_Status wm_window_close(struct wm *wm, struct wm_window *win)
     xcb_flush(wm->xcb_connection);
 
     return WM_STATUS_SUCCESS;
-}
-
-void wm_get_required_extensions(struct wm_extensions *wm_extensions)
-{
-    static const char *required_xcb_extensions[] = {
-        VK_KHR_SURFACE_EXTENSION_NAME,
-        VK_KHR_XCB_SURFACE_EXTENSION_NAME,
-    };
-
-    wm_extensions->count = ARRAY_SIZE(required_xcb_extensions);
-    wm_extensions->names = required_xcb_extensions;
-}
-
-WM_Surface_Status wm_surface_create(struct wm_surface *surface, const struct wm_surface_info info)
-{
-    CHECK_NULL(info.wm);
-    CHECK_NULL(info.win);
-
-    VkResult status = -1;
-    VkXcbSurfaceCreateInfoKHR create_info = {
-        .sType      = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
-        .connection = info.wm->xcb_connection,
-        .window     = info.win->xcb_window,
-    };
-    VkInstance instance = *info.instance;
-    status = vkCreateXcbSurfaceKHR(instance, &create_info, NULL, &surface->handle);
-    if (status != VK_SUCCESS) {
-        return WM_SURFACE_STATUS_FAILED_TO_CREATE_SURFACE;
-    }
-
-    return WM_SURFACE_STATUS_SUCCESS;
 }
 
 #define GET_XCB_RESPONSE_TYPE(e) ((e)->response_type & ~0x80)
