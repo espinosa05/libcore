@@ -42,6 +42,7 @@ struct m_arena {
     usz mem_avail;
     usz mem_used;
     b32 heap;
+    struct os_mutex access;
 };
 #define M_ARENA(...) (struct m_arena) { __VA_ARGS__ }
 #define M_ARENA_REF(...) &M_ARENA(__VA_ARGS__)
@@ -55,6 +56,11 @@ struct m_arena_info {
 void m_arena_init(struct m_arena *arena, const struct m_arena_info info);
 void *m_arena_alloc(struct m_arena *arena, usz size, usz count);
 void m_arena_destroy(struct m_arena *arena);
+
+void m_arena_save(struct m_arena *arena, usz *save);
+void m_arena_restore(struct m_arena *arena, usz save);
+
+void m_arena_clear(struct m_arena *arena);
 
 struct m_array {
     void    *data;
@@ -73,6 +79,8 @@ struct m_array {
 
 #define GENERIC_ARRAY_ENTRY_REF(a, s, i) ((u8 *)(a)+ ((s)*(i)))
 #define GENERIC_ARRAY_ENTRY(a, s, i) *GENERIC_ARRAY_ENTRY_REF(a, s, i)
+
+#define EACH_M_ARRAY(e, a, ...)    __VA_ARGS__ e = (__VA_ARGS__ *)(a)->data, usz i = 0; e = m_array_get_addr((a), i); ++i
 
 struct m_array_info {
     void    *base;

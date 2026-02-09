@@ -28,6 +28,7 @@ typedef usz Str_Builder_Status;
 void str_builder_init(struct str_builder *sb, usz init_cap);
 Str_Builder_Status str_builder_append(struct str_builder *sb, char *str);
 void str_builder_to_cstr_alloc(const struct str_builder *sb, char **dst);
+void str_builder_to_cstr_ar(const struct str_builder *sb, char **dst, struct m_arena *arena);
 void str_builder_delete(const struct str_builder sb);
 void str_builder_init_ext(struct str_builder *sb, const struct m_buffer buff);
 
@@ -40,18 +41,31 @@ void str_builder_init_ext(struct str_builder *sb, const struct m_buffer buff);
 #define STR_SYM_MSG(s) STR_SYM_FMT(s) STR_SYM_ARG(s)
 #define STR_SYM_QUOT(s) "\""STR_SYM(s)"\""
 
+#define STR_QUOT_LIT(lit) "\"" lit "\""
+
 #define NULL_TERM_SIZE 1
 #define NULL_TERM_BUFF(s, n) (s)[n] = '\0'
 #define CONST_STRLEN(str)   (sizeof(str)/sizeof(*str)-NULL_TERM_SIZE)
 
+#define cstr_char_at(str, where) (cstr_t)(str)[(where)]
 #define cstr_length strlen
 #define cstr_compare(s1, s2) (0 == strcmp(s1, s2))
 #define cstr_concat strncat
 #define cstr_copy strncpy
+#define cstr_duplicate strdup
 
+char cstr_char_at_backwards(char *str, usz pos);
 char *cstr_format(char *buffer, usz size, const char *fmt, ...);
 char *cstr_format_variadic(char *buffer, usz size, const char *fmt, va_list args, usz *final_length);
 void cstr_format_alloc(char **buffer, const char *fmt, ...);
 void cstr_format_alloc_variadic(char **buffer, const char *fmt, va_list args, usz *length);
+
+void cstr_format_ar(char **buffer, const char *fmt, struct m_arena *arena, ...);
+void cstr_format_variadic_ar(char **buffer, const char *fmt, va_list args, struct m_arena *arena);
+
+void cstr_token_ar(char *buffer, const char *str, const char *delim, char **tok_ptr, struct m_arena *arena);
+
+b32 cstr_contains(char *str, char *sub);
+b32 cstr_contains_char(char *str, char c);
 
 #endif /* __CORE_STRINGS_H__ */

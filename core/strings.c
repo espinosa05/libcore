@@ -1,5 +1,9 @@
 #include <core/strings.h>
 
+/* static function declaration start */
+static b32 is_delim(char c, char *delim);
+/* static function declaration end */
+
 void str_builder_init(struct str_builder *sb, usz init_cap)
 {
     sb->count       = 0;
@@ -69,9 +73,41 @@ void str_builder_to_cstr_alloc(const struct str_builder *sb, char **dst)
     *dst = base;
 }
 
+void str_builder_to_cstr_ar(const struct str_builder *sb, char **dst, struct m_arena *arena)
+{
+    char *base; /* stores the base address of the buffer */
+    char *cursor; /* keeps track of the elements */
+    usz element_length;
+    usz buff_length;
+
+    /* create first element */
+    element_length = cstr_length(sb->elements[0]);
+    base = m_arena_alloc(arena, sizeof(*base), element_length + NULL_TERM_SIZE);
+    cursor = base;
+    buff_length = element_length;
+    cstr_copy(cursor, sb->elements[0], element_length);
+    NULL_TERM_BUFF(cursor, element_length);
+
+    for (usz i = 1; i < sb->count; ++i) {
+        /* reallocate the buffer */
+        base = m_realloc(base, sizeof(*sb->elements), buff_length);
+        cstr_copy(cursor, sb->elements[i], element_length);
+        NULL_TERM_BUFF(cursor, element_length);
+        cursor += element_length;
+        buff_length += element_length;
+    }
+
+    *dst = base;
+}
+
 void str_builder_delete(const struct str_builder sb)
 {
     m_free(sb.elements);
+}
+
+char cstr_char_at_backwards(char *str, usz pos)
+{
+    return cstr_char_at(str, (cstr_length(str) - 1) - pos);
 }
 
 void cstr_format_alloc_variadic(char **buffer, const char *fmt, va_list args, usz *length)
@@ -81,6 +117,46 @@ void cstr_format_alloc_variadic(char **buffer, const char *fmt, va_list args, us
 
     if (length)
         *length = alloc_size;
+}
+
+void cstr_format_ar(char **buffer, const char *fmt, struct m_arena *arena, ...)
+{
+    va_list args;
+    va_start(args, arena);
+
+    cstr_format_variadic_ar(buffer, fmt, args, arena);
+}
+
+void cstr_format_variadic_ar(char **buffer, const char *fmt, va_list args, struct m_arena *arena)
+{
+    usz alloc_size = vsnprintf(NULL, fmt, 0, args);
+    *buffer = m_arena_alloc(arena, alloc_size, 1);
+    vasnprintf(*buffer, fmt, alloc_size, args);
+}
+
+void cstr_token_ar(char *buffer, const char *str, const char *delim, char **tok_ptr, struct m_arena *arena)
+{
+    CHECK_NULL(buffer);
+    CHECK_NULL(delim);
+    CHECK_NULL(tok_ptr);
+    CHECK_NULL(arena);
+
+    char *remain = NULL;
+    usz count = 0;
+
+    if (!tok_ptr) {
+        remain = str;
+    } else {
+        remain = *tok_ptr + 1;
+    }
+
+    for (count = 0; count < cstr_length(remain); ++count) {
+        char c = cstr_char_at(remain, count);
+        if (is_delim(c, delim))
+            break;
+    }
+
+    *tok_ptr = remain + count;
 }
 
 void cstr_format_alloc(char **buffer, const char *fmt, ...)
@@ -104,6 +180,31 @@ char *cstr_format(char *buffer, usz size, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
+
     return cstr_format_variadic(buffer, size, fmt, args, NULL);
 }
 
+b32 cstr_contains(char *str, char *sub)
+{
+    for (usz i = 0; i < cstr_length(str); ++i) {
+        if (cstr_compare(str + i, sub))
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+b32 cstr_contains_char(char *str, char c)
+{
+    for (usz i = 0; i < cstr_length(str); ++i) {
+        if (c == str[i])
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+static b32 is_delim(char c, char *delim)
+{
+    return cstr_contains_char(delim, c);
+}

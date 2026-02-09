@@ -3,6 +3,7 @@
 #include <core/os_streams.h>
 #include <core/os_file.h>
 #include <core/os_socket.h>
+#include <core/os_util.h>
 
 #include <core/utils.h>
 #include <core/strings.h>
@@ -44,7 +45,7 @@ static struct os_file __OS_StdErr;
 //static struct rlimit initial_coredump_count = {0};
 /* global data end */
 
-void os_open_library(struct os_library *lib, const struct os_library_info info)
+void os_library_open(struct os_library *lib, const struct os_library_info info)
 {
     ASSERT(info.name, "No library name passed!");
 
@@ -55,8 +56,12 @@ void os_open_library(struct os_library *lib, const struct os_library_info info)
     char *actual_path_str = NULL;
     {
         struct str_builder whole_path = {0};
-        str_builder_init(&whole_path, os_get_max_path_length(info.path));
-        str_builder_append(&whole_path, info.path);
+        str_builder_init(&whole_path, os_get_max_path_length(path));
+        str_builder_append(&whole_path, path);
+
+        if ('/' == cstr_char_at_backwards(path, 0))
+            str_builder_append(&whole_path, "/");
+
         str_builder_append(&whole_path, info.name);
         str_builder_append(&whole_path, ".so");
         str_builder_to_cstr_alloc(&whole_path, &actual_path_str);
@@ -69,13 +74,13 @@ void os_open_library(struct os_library *lib, const struct os_library_info info)
     m_free(actual_path_str);
 }
 
-void os_load_library_symbol(struct os_library *lib, void **dst, const char *symbol)
+void os_library_load_symbol(struct os_library *lib, void **dst, const char *symbol)
 {
    *dst = dlsym(lib, symbol);
    ASSERT_RT(*dst, "failed to load symbol %s: %s", symbol, dlerror());
 }
 
-void os_close_library(struct os_library lib)
+void os_library_close(struct os_library lib)
 {
     int st = dlclose(lib.handle);
     ASSERT_RT(st == 0, "failed to close dynamic library: %s", dlerror());
@@ -108,7 +113,7 @@ OS_Thread_Status os_thread_spawn(struct os_thread *thr, void (*func) (void *), v
         ret = OS_THREAD_STATUS_FAILED_TO_CREATE;
         break;
     case THREAD_CREATED:
-        INFO_LOG("thread started with PID: %d", thr->pid);
+        INFO_LOG("thread started with PID: "USZ_FMT, thr->pid);
         func(arg);
         ret = OS_THREAD_STATUS_SUCCESS;
         break;
@@ -555,6 +560,11 @@ OS_Socket_Status os_socket_send_data(const struct os_socket *sock, char *buffer,
     return os_socket_errno_code_to_status(st, SOCK_FN_SEND, errno);
 }
 
+void os_util_strip_file_extension(const char *file_name, char **dst, )
+{
+    /* walk backwards until a period is hit */
+    dst *
+}
 
 /* big ugly function... don't blame me. Blame horrily outdated POSIX errors */
 static OS_Socket_Status os_socket_errno_code_to_status(sz status_code, usz socket_function, usz errno_val)
