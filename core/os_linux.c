@@ -1,10 +1,13 @@
+#define _LARGEFILE64_SOURCE
+#define _FILE_OFFSET_BITS 64
+
 #include <core/os.h>
 #include <core/os_dynamic_library.h>
 #include <core/os_streams.h>
 #include <core/os_file.h>
+#include <core/os_directory.h>
 #include <core/os_socket.h>
-#include <core/os_util.h>
-
+#include <core/os_thread.h>
 #include <core/utils.h>
 #include <core/strings.h>
 #include <core/types.h>
@@ -15,6 +18,7 @@
 
 
 #define OS_LINUX_SYSCALL_SUCCESS(rc) (rc >= 0)
+
 
 /* static function declaration start */
 static OS_Stream_Status open_file_stream(struct os_stream *stream, const struct os_file_info info);
@@ -30,7 +34,6 @@ static void platform_init(void) __FUNC_ATTR_CONSTRUCTOR__;
 static void register_core_signal_handlers(void) __FUNC_ATTR_CONSTRUCTOR__;
 static void core_empty_handler(int signum);
 static void set_linux_signal_handler(int signum, void (*handler) (int));
-
 /* static function declaration end */
 
 /* global data start */
@@ -38,11 +41,13 @@ struct os_file *OS_STDIN;
 struct os_file *OS_STDOUT;
 struct os_file *OS_STDERR;
 
-static struct os_file __OS_StdIn;
-static struct os_file __OS_StdOut;
-static struct os_file __OS_StdErr;
+static struct os_file g_os_stdin;
+static struct os_file g_os_stdout;
+static struct os_file g_os_stderr;
 
-//static struct rlimit initial_coredump_count = {0};
+#if COMMENT
+static struct rlimit initial_coredump_count = {0};
+#endif
 /* global data end */
 
 void os_library_open(struct os_library *lib, const struct os_library_info info)
@@ -69,7 +74,7 @@ void os_library_open(struct os_library *lib, const struct os_library_info info)
     }
 
     lib->handle = dlopen(actual_path_str, RTLD_LAZY);
-    ASSERT_RT(lib->handle, "failed to open dynamic library \"%s\" %s", actual_path_str, dlerror());
+    ASSERT_RT(lib->handle, "failed to open dynamic library "STR_QUOT_LIT(STR_FMT)" "STR_FMT, actual_path_str, dlerror());
 
     m_free(actual_path_str);
 }
@@ -77,16 +82,16 @@ void os_library_open(struct os_library *lib, const struct os_library_info info)
 void os_library_load_symbol(struct os_library *lib, void **dst, const char *symbol)
 {
    *dst = dlsym(lib, symbol);
-   ASSERT_RT(*dst, "failed to load symbol %s: %s", symbol, dlerror());
+   ASSERT_RT(*dst, "failed to load symbol"STR_QUOT_LIT(STR_FMT)" "STR_FMT, symbol, dlerror());
 }
 
 void os_library_close(struct os_library lib)
 {
     int st = dlclose(lib.handle);
-    ASSERT_RT(st == 0, "failed to close dynamic library: %s", dlerror());
+    ASSERT_RT(st == 0, "failed to close dynamic library: "STR_FMT, dlerror());
 }
 
-enum threadStatus { THREAD_FAILED = -1, THREAD_CREATED = 0, };
+enum thread_status { THREAD_FAILED = -1, THREAD_CREATED = 0, };
 OS_Thread_Status os_thread_spawn(struct os_thread *thr, void (*func) (void *), void *arg)
 {
     struct clone_args clone_args = {0};
@@ -392,6 +397,84 @@ void os_file_flush(const struct os_file *f)
     UNUSED(f);
 }
 
+
+void os_dir_open(struct os_dir *dir, const struct os_dir_info info)
+{
+    u32 perm = info.perm | O_DIRECTORY;
+    sz st = open(info.path, info.perm);
+
+    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "failed to open directory!");
+
+    dir->path = info.path;
+    dir->handle = st;
+}
+
+void os_dir_create(struct os_dir *dir, const struct os_dir_info info)
+{
+    u32 perm = info.perm | O_DIRECTORY | O_CREAT;
+    sz st = open(info.path, info.perm);
+
+    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "failed to create directory!");
+
+    dir->handle = st;
+}
+
+/* custom definition of linux dirent 64 structure */
+struct linux_dirent64 {
+    u64             d_ino;
+    s64             d_off;
+    unsigned short  d_reclen;
+    unsigned char   d_type;
+    char            d_name[];
+};
+
+#define INIT_PATH_ARRAY_COUNT 32
+void os_dir_get_file_paths(const struct os_dir *dir, struct m_array *paths)
+{
+    usz max_path = os_get_max_path_length(dir->path);
+    m_array_init(paths, sizeof(char *), INIT_PATH_ARRAY_COUNT);
+
+    usz buff_size = sizeof(struct linux_dirent64) + max_path;
+    struct m_buffer buffer = {0};
+    struct m_buffer_info buffer_info = {
+        .buffer = m_alloc(BYTE_SIZE, buff_size),
+        .size   = buff_size,
+    };
+    m_buffer_init(&buffer, buffer_info);
+
+    struct linux_dirent64 *dir_entry = NULL;
+    while (TRUE) {
+        usz bytes_read = 0;
+        usz st = syscall(SYS_getdents, dir->handle, buffer.base, buffer.size);
+        ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "failed to read directory entry: "STR_FMT, strerror(errno));
+
+        bytes_read = st;
+        if (bytes_read == 0)
+            break;
+
+        for (usz offset = 0; offset < bytes_read; bytes_read += dir_entry->d_reclen) {
+            dir_entry = (struct linux_dirent64 *)&U8_ARRAY_ELEMENT(buffer.base, offset);
+            if (dir_entry->d_type == DT_REG)
+                m_array_append(paths, cstr_duplicate(dir_entry->d_name));
+        }
+    }
+
+    m_free(buffer.base);
+}
+
+void os_dir_cleanup_paths(struct m_array paths)
+{
+    for (usz i = 0; i < paths.count; ++i) {
+        m_free(m_array_get_addr(paths, i));
+    }
+}
+
+void os_dir_close(const struct os_dir *dir)
+{
+    close(dir->handle);
+}
+
+
 #define OS_SOCKET_INVALID FD_INVALID
 
 enum socket_functions {
@@ -560,10 +643,21 @@ OS_Socket_Status os_socket_send_data(const struct os_socket *sock, char *buffer,
     return os_socket_errno_code_to_status(st, SOCK_FN_SEND, errno);
 }
 
-void os_util_strip_file_extension(const char *file_name, char **dst, )
+void os_util_strip_file_extension_ar(const char *file_name, char **dst, struct m_arena *arena)
 {
     /* walk backwards until a period is hit */
-    dst *
+    usz length = 0;
+    *dst = NULL;
+    length = cstr_length(file_name);
+
+    for (usz i = length - 1; i > 0; i--) {
+        if ('.' == file_name[i]) {
+            usz stripped_length = length - i;
+            *dst = m_arena_alloc(arena, sizeof(**dst), stripped_length + NULL_TERM_SIZE);
+            cstr_copy(*dst, file_name, stripped_length);
+            break;
+        }
+    }
 }
 
 /* big ugly function... don't blame me. Blame horrily outdated POSIX errors */
@@ -746,7 +840,6 @@ static OS_Stream_Status open_ipc_socket_stream(struct os_stream *stream, const s
     return OS_STREAM_STATUS_SUCCESS;
 }
 
-
 static void platform_init()
 {
     register_core_signal_handlers();
@@ -763,13 +856,13 @@ static void platform_shutdown(void)
 enum linux_default_io_fds { OS_LINUX_STDIN = STDIN_FILENO, OS_LINUX_STDOUT = STDOUT_FILENO, OS_LINUX_STDERR = STDERR_FILENO, };
 static void os_file_init_proc_io_handles(void)
 {
-    __OS_StdIn  = (struct os_file) { .handle = OS_LINUX_STDIN };
-    __OS_StdOut = (struct os_file) { .handle = OS_LINUX_STDOUT };
-    __OS_StdErr = (struct os_file) { .handle = OS_LINUX_STDERR };
+    g_os_stdin  = (struct os_file) { .handle = OS_LINUX_STDIN };
+    g_os_stdout = (struct os_file) { .handle = OS_LINUX_STDOUT };
+    g_os_stderr = (struct os_file) { .handle = OS_LINUX_STDERR };
 
-    OS_STDIN    = &__OS_StdIn;
-    OS_STDOUT   = &__OS_StdOut;
-    OS_STDERR   = &__OS_StdErr;
+    OS_STDIN    = &g_os_stdin;
+    OS_STDOUT   = &g_os_stdout;
+    OS_STDERR   = &g_os_stderr;
 
     ASSERT_RUN_ONCE();
 }

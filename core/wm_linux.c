@@ -187,7 +187,6 @@ void wm_window_release_mouse(struct wm *wm, struct wm_window *win)
     xcb_flush(wm->xcb_connection);
 }
 
-
 WM_Status wm_window_close(struct wm *wm, struct wm_window *win)
 {
     xcb_destroy_window(wm->xcb_connection, win->xcb_window);
@@ -278,6 +277,7 @@ void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event
 
     m_free(xcb_event);
 }
+
 
 static b32 supported_window_resolution(const struct wm_window_info info)
 {

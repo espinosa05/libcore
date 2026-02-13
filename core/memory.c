@@ -18,14 +18,14 @@ void m_arena_init(struct m_arena *arena, const struct m_arena_info info)
 
 void *m_arena_alloc(struct m_arena *arena, usz size, usz count)
 {
-    os_mutex_lock(&arena->access_mutex);
+    os_mutex_lock(&arena->access);
     void *buff = NULL;
     arena->mem_used += size * count;
 
     if (arena->mem_used <= arena->mem_avail)
         buff = (u8 *)arena->buffer + arena->mem_used;
 
-    os_mutex_unlock(&arena->access_mutex);
+    os_mutex_unlock(&arena->access);
 
     return buff;
 }
@@ -41,16 +41,25 @@ void m_arena_destroy(struct m_arena *arena)
         m_free(arena->buffer);
 }
 
+void *m_arena_alloc_claimed(struct m_arena *arena, usz size, usz count)
+{
+    void *buff = NULL;
+    arena->mem_used += size * count;
+
+    if (arena->mem_used <= arena->mem_avail)
+        buff = (u8 *)arena->buffer + arena->mem_used;
+
+    return buff;
+}
+
 void m_arena_save(struct m_arena *arena, usz *save)
 {
-    os_mutex_lock(&arena->access);
     *save = arena->mem_used;
 }
 
 void m_arena_restore(struct m_arena *arena, usz save)
 {
     arena->mem_used = save;
-    os_mutex_unlock(&arena->access);
 }
 
 void m_buffer_init(struct m_buffer *buffer, const struct m_buffer_info info)
