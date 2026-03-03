@@ -1,7 +1,7 @@
 #ifndef __CORE_STRINGS_H__
 #define __CORE_STRINGS_H__
 
-#include <core/memory.h>
+#include <core/memory_arena.h>
 #include <core/buffer.h>
 #include <core/types.h>
 #include <core/utils.h>
@@ -19,6 +19,7 @@ struct str_builder {
     usz     cap;
     b32     external;
 };
+
 enum str_builder_status_codes {
     STR_BUILDER_STATUS_SUCCESS = 0,
     STR_BUILDER_STATUS_EXHAUSTED,
@@ -26,7 +27,7 @@ enum str_builder_status_codes {
 typedef usz Str_Builder_Status;
 
 void str_builder_init(struct str_builder *sb, usz init_cap);
-Str_Builder_Status str_builder_append(struct str_builder *sb, char *str);
+Str_Builder_Status str_builder_append(struct str_builder *sb, const char *str);
 void str_builder_to_cstr_alloc(const struct str_builder *sb, char **dst);
 void str_builder_to_cstr_ar(const struct str_builder *sb, char **dst, struct m_arena *arena);
 void str_builder_delete(const struct str_builder sb);
@@ -47,7 +48,6 @@ void str_builder_init_ext(struct str_builder *sb, const struct m_buffer buff);
 #define NULL_TERM_BUFF(s, n) (s)[n] = '\0'
 #define CONST_STRLEN(str)   (sizeof(str)/sizeof(*str)-NULL_TERM_SIZE)
 
-#define cstr_char_at(str, where) (cstr_t)(str)[(where)]
 #define cstr_length strlen
 #define cstr_compare(s1, s2) (0 == strcmp(s1, s2))
 #define cstr_concat strncat
@@ -60,12 +60,12 @@ char *cstr_format_variadic(char *buffer, usz size, const char *fmt, va_list args
 void cstr_format_alloc(char **buffer, const char *fmt, ...);
 void cstr_format_alloc_variadic(char **buffer, const char *fmt, va_list args, usz *length);
 
-void cstr_format_ar(char **buffer, const char *fmt, struct m_arena *arena, ...);
-void cstr_format_variadic_ar(char **buffer, const char *fmt, va_list args, struct m_arena *arena);
+void cstr_format_ar(char **buffer, struct m_arena *arena, const char *fmt, ...);
+void cstr_format_variadic_ar(char **buffer, struct m_arena *arena, const char *fmt, va_list args);
 
-void cstr_token_ar(char *buffer, const char *str, const char *delim, char **tok_ptr, struct m_arena *arena);
+void cstr_token_ar(char **buffer, const char *str, const char *delim, const char **tok_ptr, struct m_arena *arena);
 
-b32 cstr_contains(char *str, char *sub);
-b32 cstr_contains_char(char *str, char c);
+b32 cstr_contains(const char *str, const char *sub);
+b32 cstr_contains_char(const char *str, const char c);
 
 #endif /* __CORE_STRINGS_H__ */

@@ -4,23 +4,18 @@ int main(void)
 {
     usz size = 32;
     struct m_array array = {0};
-    struct m_array_info array_info = {
-        .width  = sizeof(usz),
-        .base   = m_alloc(1, size),
-        .cap    = size,
-    };
+    m_array_init(&array, sizeof(usz), size);
 
-    m_array_init_ext(&array, array_info);
-    m_array_append(&array, &(usz) {5});
-    m_array_append(&array, &(usz) {7});
-    m_array_append(&array, &(usz) {6});
-    m_array_append(&array, &(usz) {3});
-    m_array_append(&array, &(usz) {117});
+    m_array_append(&array, USZ_REF(7));
+    m_array_append(&array, USZ_REF(7));
+    m_array_append(&array, USZ_REF(6));
+    m_array_append(&array, USZ_REF(32));
+    m_array_append(&array, USZ_REF(112));
 
     for (usz i = 0; i < array.count; ++i) {
-        usz e = 0;
-        m_array_get(&array, i, (void *)&e);
-        printf("array[%d] : %d\n", i, e);
+        usz e = *USZ_ARRAY_ELEMENT(&array, i);
+        printf("array["USZ_FMT"] : "USZ_FMT"\n", i, e);
     }
-    return 0;
+
+    return OS_EXIT_SUCCESS;
 }

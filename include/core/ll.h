@@ -2,7 +2,7 @@
 #define __CORE_LL_H__
 
 #include <core/types.h>
-#include <core/memory.h>
+#include <core/memory_arena.h>
 
 struct ll_double_info {
     usz width;

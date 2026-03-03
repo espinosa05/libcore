@@ -18,8 +18,9 @@ void m_arena_init(struct m_arena *arena, const struct m_arena_info info)
 
 void *m_arena_alloc(struct m_arena *arena, usz size, usz count)
 {
-    os_mutex_lock(&arena->access);
     void *buff = NULL;
+
+    os_mutex_lock(&arena->access);
     arena->mem_used += size * count;
 
     if (arena->mem_used <= arena->mem_avail)
@@ -37,8 +38,12 @@ void m_arena_clear(struct m_arena *arena)
 
 void m_arena_destroy(struct m_arena *arena)
 {
+    os_mutex_lock(&arena->access);
+
     if (arena->heap)
         m_free(arena->buffer);
+
+    os_mutex_unlock(&arena->access);
 }
 
 void *m_arena_alloc_claimed(struct m_arena *arena, usz size, usz count)
@@ -64,32 +69,41 @@ void m_arena_restore(struct m_arena *arena, usz save)
 
 void m_buffer_init(struct m_buffer *buffer, const struct m_buffer_info info)
 {
+    if (info.dynamic) {
+        buffer->dynamic = TRUE;
+        buffer->base = m_alloc(BYTE_SIZE, info.size);
+    } else {
+        buffer->base = info.buffer;
+    }
+
     buffer->cursor = 0;
-    buffer->base = info.buffer;
     buffer->size = info.size;
 }
 
-M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *src, usz dst_cap, usz ammount)
+void m_buffer_resize(struct m_buffer *buffer, usz new_size)
+{
+    ASSERT(buffer->dynamic, "can't resize static buffer!");
+    buffer->base = m_realloc(buffer->base, BYTE_SIZE, new_size);
+    buffer->size = new_size;
+}
+
+M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *src, usz ammount)
 {
     if (buffer->cursor + ammount > buffer->size)
         return M_BUFFER_STATUS_OUT_OF_MEMORY;
 
-    if (dst_cap < ammount)
-        return M_BUFFER_STATUS_OUT_OF_BOUNDS_READ;
-
     m_copy(src, buffer->base, ammount);
+    buffer->cursor += ammount;
+
     return M_BUFFER_STATUS_SUCCESS;
 }
 
-M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *dst, usz dst_cap, usz ammount)
+M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *dst, usz ammount)
 {
     if (buffer->cursor + ammount > buffer->size)
         return M_BUFFER_STATUS_OUT_OF_MEMORY;
 
-    if (dst_cap < ammount)
-        return M_BUFFER_STATUS_OUT_OF_BOUNDS_WRITE;
-
-    m_copy((u8 *)buffer->base + buffer->cursor, dst, ammount);
+    m_copy(U8_PTR(buffer->base) + buffer->cursor, dst, ammount);
     buffer->cursor += ammount;
 
     return M_BUFFER_STATUS_SUCCESS;
@@ -97,11 +111,16 @@ M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *dst, usz dst_cap, u
 
 M_Buffer_Status m_buffer_set_cursor(struct m_buffer *buffer, usz pos)
 {
-    if (pos <= buffer->size)
+    if (pos > buffer->size)
         return M_BUFFER_STATUS_OUT_OF_BOUNDS_CURSOR;
 
     buffer->cursor = pos;
     return M_BUFFER_STATUS_SUCCESS;
+}
+
+void m_buffer_delete(const struct m_buffer *buffer)
+{
+    m_free(buffer->base);
 }
 
 void m_array_init(struct m_array *array, usz width, usz init_size)
@@ -115,9 +134,10 @@ void m_array_init(struct m_array *array, usz width, usz init_size)
 
 void m_array_init_ext(struct m_array *array, const struct m_array_info info)
 {
+    ASSERT(info.base, "array can't point to NULL!");
     array->data     = info.base;
     array->width    = info.width;
-    array->count    = 0;
+    array->count    = info.count;
     array->cap      = info.cap;
     array->dynamic  = FALSE;
 }
@@ -146,8 +166,11 @@ void m_array_get(const struct m_array *array, usz index, void *element)
 
 void *m_array_get_addr(const struct m_array *array, usz index)
 {
-    ASSERT(index <= array->count, "m_array("USZ_FMT") out of bounds read: @ "PTR_FMT" + "USZ_FMT", ",
-                                  array->count);
+    ASSERT(index < array->count, "m_array("USZ_FMT") out of bounds read: @ "PTR_FMT" + "USZ_FMT,
+                                  index,
+                                  array->data,
+                                  index * array->width);
+
     return GENERIC_ARRAY_ENTRY_REF(array->data, array->width, index);
 }
 
@@ -186,7 +209,6 @@ M_Stack_Status m_stack_init(struct m_stack *stack, const struct m_stack_info inf
     }
 
     return M_STACK_STATUS_SUCCESS;
-
 }
 
 M_Stack_Status m_stack_push(struct m_stack *stack, const void *element)

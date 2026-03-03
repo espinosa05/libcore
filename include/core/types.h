@@ -7,6 +7,13 @@
 #include <inttypes.h>
 #include <stdarg.h>
 
+/* legacy type compatibility */
+typedef unsigned char   uchar;
+typedef unsigned short  ushort;
+typedef unsigned int    uint;
+typedef unsigned long   ulong;
+
+/* new types */
 typedef ptrdiff_t   sz;
 typedef sz          ssz;
 typedef size_t      usz;
@@ -24,28 +31,34 @@ typedef int64_t     s64;
 typedef float       f32;
 typedef double      f64;
 
-enum                b32Values { FALSE = 0, TRUE = 1 };
-typedef uint32_t    b32; /* boolean type */
+enum                b32_values { FALSE = 0, TRUE = 1 };
+typedef u32         b32; /* boolean type */
 
-typedef const char  *cstr_t;    /* looks pretty while casting */
+typedef const char  *cstr; /* looks pretty while casting */
+
+typedef intmax_t    smax;
+typedef uintmax_t   umax;
 
 #define U8_MIN      0
 #define U16_MIN     0
 #define U32_MIN     0
 #define U64_MIN     0
 #define USZ_MIN     0
+#define UMAX_MIN    0
 
 #define U8_MAX      255U
 #define U16_MAX     65535U
 #define U32_MAX     4294967295UL
 #define U64_MAX     18446744073709551615ULL
 #define USZ_MAX     ((1<<sizeof(usz)*8))
+#define UMAX_MAX    UINTMAX_MAX
 
 #define S8_MAX      (((1<<sizeof(s8)*8)/2)-1)
 #define S16_MAX     (((1<<sizeof(s16)*8)/2)-1)
 #define S32_MAX     (((1<<sizeof(s32)*8)/2)-1)
 #define S64_MAX     (((1<<sizeof(s64)*8)/2)-1)
 #define SSZ_MAX     (((1<<sizeof(ssz)*8)/2)-1)
+#define SMAX_MAX    INTMAX_MAX
 
 #define B32_FMT         "%s"
 #define B32_FMT_ARG(b)  (b) ? "TRUE" : "FALSE"
@@ -54,7 +67,7 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 #define SSZ_FMT     SZ_FMT
 #define USZ_FMT     "%"PRIu64   /* applies to this aswell */
 
-#define PTR_FMT     "%"PRIuPTR
+#define PTR_FMT     "%p"
 
 #define U8_FMT      "%"PRIu8
 #define U16_FMT     "%"PRIu16
@@ -89,7 +102,7 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 #define S32_N_FMT(n)    "%"#n PRIi32
 #define S64_N_FMT(n)    "%"#n PRIi64
 
-#define TYPE_ARRAY_ELEMENT(a, i, ...) ((__VA_ARGS__)(a)[(i)])
+#define TYPE_ARRAY_ELEMENT(a, i, ...) ((__VA_ARGS__ *)(a)) [(i)]
 
 #define SZ_ARRAY_ELEMENT(a, i)      TYPE_ARRAY_ELEMENT(a, i, sz)
 #define SSZ_ARRAY_ELEMENT(a, i)     TYPE_ARRAY_ELEMENT(a, i, ssz)
@@ -111,5 +124,49 @@ typedef const char  *cstr_t;    /* looks pretty while casting */
 
 #define STR_FMT     "%s"
 #define STR_QUOT(s) "\"" s "\""
+
+#define F32(n)  ((f32)(n))
+#define F64(n)  ((f64)(n))
+
+#define S8(n)   ((s8)(n))
+#define S16(n)  ((s16)(n))
+#define S32(n)  ((s32)(n))
+#define S64(n)  ((s64)(n))
+
+#define U8(n)   ((u8)(n))
+#define U16(n)  ((u16)(n))
+#define U32(n)  ((u32)(n))
+#define U64(n)  ((u64)(n))
+
+#define SSZ(n)  ((ssz)(n))
+#define USZ(n)  ((usz)(n))
+#define PTR(p)  ((void *)(p))
+
+#define S8_PTR(ptr)     ((s8 *)(ptr))
+#define S16_PTR(ptr)    ((s16 *)(ptr))
+#define S32_PTR(ptr)    ((s32 *)(ptr))
+#define S64_PTR(ptr)    ((s64 *)(ptr))
+
+#define U8_PTR(ptr)     ((u8 *)(ptr))
+#define U16_PTR(ptr)    ((u16 *)(ptr))
+#define U32_PTR(ptr)    ((u32 *)(ptr))
+#define U64_PTR(ptr)    ((u64 *)(ptr))
+#define USZ_PTR(ptr)    ((usz *)(ptr))
+
+#define S8_REF(s)   &(s8) {(s)}
+#define S16_REF(s)  &(s16) {(s)}
+#define S32_REF(s)  &(s32) {(s)}
+#define S64_REF(s)  &(s64) {(s)}
+#define SSZ_REF(s)  &(ssz) {(s)}
+
+#define U8_REF(u)   &(u8) {(u)}
+#define U16_REF(u)  &(u16) {(u)}
+#define U32_REF(u)  &(u32) {(u)}
+#define U64_REF(u)  &(u6) {(u)}
+#define USZ_REF(u)  &(usz) {(u)}
+
+#define DECL_FUNC_PTR(ret, name, ...)  ret (*name) (__VA_ARGS__)
+/* used for type casting */
+#define FUNC_PTR_TYPE(ret, ...) ret (*) (__VA_ARGS__)
 
 #endif /* __TYPES_H__ */

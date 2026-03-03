@@ -2,7 +2,7 @@
 #define __CORE_QUEUE_H__
 
 #include <core/types.h>
-#include <core/memory.h>
+#include <core/memory_arena.h>
 #include <core/ll.h>
 
 enum queue_status_codes {

@@ -15,9 +15,8 @@
 
 #define __FUNC_ATTR_CONSTRUCTOR__   __attribute__((constructor))
 #define __FUNC_ATTR_DESTRUCTOR__    __attribute__((destructor))
+#define __FUNC_ATTR_NAKED__         __attribute__((naked))
 
-#define get_errno_str(v) strerror(v)
 #define BUILTIN_UNREACHABLE() __builtin_unreachable()
-
 
 #endif /* __CORE_LINUX_UTILS_H__ */

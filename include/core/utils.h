@@ -51,7 +51,6 @@
 #define THROW_EXCEPTION(...)                                            \
     MACRO_START                                                         \
         F_LOG_T(OS_STDERR, "EXCEPTION", ANSI_COLOR_RED, __VA_ARGS__);   \
-        F_LOG(OS_STDERR, "\n");                                         \
         ABORT();                                                        \
     MACRO_END
 

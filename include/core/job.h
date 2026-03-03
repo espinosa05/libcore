@@ -3,6 +3,7 @@
 
 #include <core/types.h>
 #include <core/memory.h>
+#include <core/memory_arena.h>
 #include <core/queue.h>
 #include <core/os_thread.h>
 #include <core/os_lock.h>

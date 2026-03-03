@@ -2,7 +2,6 @@
 #define __CORE_SPARSE_SET_H__
 
 #include <core/types.h>
-#include<core/memory.h>
 
 struct sparse_index_set {
     u64 *sparse;

@@ -8,11 +8,13 @@ struct m_buffer {
     void *base;
     usz cursor;
     usz size;
+    b32 dynamic;
 };
 
 struct m_buffer_info {
     void *buffer;
     usz size;
+    b32 dynamic;
 };
 
 enum m_buffer_status_codes {
@@ -25,9 +27,12 @@ enum m_buffer_status_codes {
 typedef u32 M_Buffer_Status;
 
 void m_buffer_init(struct m_buffer *buffer, const struct m_buffer_info info);
-M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *dst, usz dst_cap, usz ammount);
-M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *src, usz dst_cap, usz ammount);
+void m_buffer_resize(struct m_buffer *buffer, usz new_size);
+
+M_Buffer_Status m_buffer_read(struct m_buffer *buffer, void *dst, usz ammount);
+M_Buffer_Status m_buffer_write(struct m_buffer *buffer, void *src, usz ammount);
 M_Buffer_Status m_buffer_set_cursor(struct m_buffer *buffer, usz pos);
 
+void m_buffer_delete(const struct m_buffer *buffer);
 
-#endif
+#endif /* __CORE_M_BUFFER_H__ */

@@ -32,7 +32,8 @@ void job_queue_init(struct job_queue *jobs, const struct job_queue_info info)
     };
     for (usz i = 0; i < jobs->thread_pool.count; ++i) {
         os_thread_spawn(m_array_get_addr(&jobs->thread_pool, i),
-                        job_queue_worker.func, job_queue_worker.args);
+                        job_queue_worker.func,
+                        job_queue_worker.args);
     }
 }
 

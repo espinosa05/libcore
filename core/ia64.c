@@ -17,7 +17,6 @@ b32 x64_has_cpuid(void)
         : "=r" (flags)
     );
 
-    /* check if id bit is present */
     return EFLAGS_ID == (flags & EFLAGS_ID);
 }
 
@@ -27,17 +26,18 @@ void x64_cpuid(struct x64_gpr *regs)
     asm volatile (
         ASM_STMT("cpuid")
         : "=a" (regs->rax), "=b" (regs->rbx), "=c" (regs->rcx), "=d" (regs->rdx)
-        : "a"  (regs->rax), "c"(regs->rcx)
+        : "a"  (regs->rax), "c" (regs->rcx)
     );
 }
 
 #define X64_BRAND_STRING_PART_LENGTH    (X64_GPR_EXTENDED_REG_SIZE*4)
-#define X64_BRAND_STRING_LENGTH         (X64_BRAND_STRING_PART_LENGTH * 4)
+#define X64_BRAND_STRING_LENGTH         (X64_BRAND_STRING_PART_LENGTH*4)
 
 usz x64_get_brand_string(char *buff)
 {
     char brand_string_char_buff[X64_BRAND_STRING_LENGTH + NULL_TERM_SIZE] = {0};
     char brand_string_part_char_buff[X64_BRAND_STRING_PART_LENGTH + NULL_TERM_SIZE] = {0};
+
     struct m_buffer brand_string_buff = {0};
     struct m_buffer_info brand_string_buff_info = {
         .buffer = brand_string_part_char_buff,
@@ -71,11 +71,11 @@ static char *x64_get_brand_string_part(usz idx, struct m_buffer *buff)
     m_buffer_set_cursor(buff, 0);
     x64_cpuid(&cpuid_regs);
 
-    m_buffer_write(buff, &cpuid_regs.rax, X64_GPR_EXTENDED_REG_SIZE, X64_GPR_EXTENDED_REG_SIZE);
-    m_buffer_write(buff, &cpuid_regs.rbx, X64_GPR_EXTENDED_REG_SIZE, X64_GPR_EXTENDED_REG_SIZE);
-    m_buffer_write(buff, &cpuid_regs.rcx, X64_GPR_EXTENDED_REG_SIZE, X64_GPR_EXTENDED_REG_SIZE);
-    m_buffer_write(buff, &cpuid_regs.rdx, X64_GPR_EXTENDED_REG_SIZE, X64_GPR_EXTENDED_REG_SIZE);
-    m_buffer_write(buff, &(char) {'\0'}, 1, 1); /* zero terminate */
+    m_buffer_write(buff, &cpuid_regs.rax, X64_GPR_EXTENDED_REG_SIZE);
+    m_buffer_write(buff, &cpuid_regs.rbx, X64_GPR_EXTENDED_REG_SIZE);
+    m_buffer_write(buff, &cpuid_regs.rcx, X64_GPR_EXTENDED_REG_SIZE);
+    m_buffer_write(buff, &cpuid_regs.rdx, X64_GPR_EXTENDED_REG_SIZE);
+    m_buffer_write(buff, &(char) {'\0'}, 1); /* zero terminate */
 
     return (char *)buff->base;
 }

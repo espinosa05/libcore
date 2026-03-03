@@ -2,7 +2,7 @@
 #define __CORE_XOR_LIST_H__
 
 #include <core/types.h>
-#include <core/memory.h>
+#include <core/memory_arena.h>
 
 struct xor_node {
     struct xor_node *link;

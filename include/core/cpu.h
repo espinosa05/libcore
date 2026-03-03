@@ -3,13 +3,11 @@
 
 #include <core/types.h>
 #include <core/memory.h>
+#include <core/memory_arena.h>
 
 struct cpu_info {
     usz logical_core_count;
-    usz physical_core_count;
     const char *cpu_name;
-
-    struct m_array cache_sizes;
 };
 
 void cpu_info_query_all(struct cpu_info *cpu, struct m_arena *arena);

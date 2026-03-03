@@ -32,4 +32,4 @@ void wm_get_required_vulkan_extensions(struct wm_extensions *wm_extensions);
 void wm_cleanup_required_vulkan_extensions(const struct wm_extensions wm_extensions);
 WM_Surface_Status wm_surface_create(struct wm_surface *surface, const struct wm_surface_info info);
 
-#endif /* __V2_CORE_OS_VULKAN_H__ */
+#endif /* __CORE_OS_VULKAN_H__ */

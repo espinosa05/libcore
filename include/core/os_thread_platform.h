@@ -4,7 +4,7 @@
 #include <core/platform.h>
 #if defined(CORE_PLATFORM_LINUX)
 struct os_thread {
-    pid_t pid;
+    ssz pid;
 };
 #else
 #   error "platform not supported yet"

@@ -50,11 +50,13 @@ void test_job2(struct test_job2_args *args) {
     if (args->number == 0) {
         WARN_LOG("test_job2: "STR_SYM(args->number)": is zero!");
     } else {
-        INFO_LOG("test_job2: "STR_SYM(args->number)": %d", args->number);
+        INFO_LOG("test_job2: "STR_SYM(args->number)": "USZ_FMT, args->number);
     }
     os_mutex_unlock(&print_lock);
 }
 
+#define COMP_LIT(..., type) type { __VA_ARGS__ }
+#define ARG_ARRAY_SIZE 3
 int main(int argc, char **argv)
 {
     os_mutex_init(&print_lock);
@@ -74,15 +76,23 @@ int main(int argc, char **argv)
     };
     job_queue_init(&jobs, jobs_info);
 
-#define SIZE 3
     struct job_info job_data[] = {
-        { JOB_FUNC(test_job0), JOB_ARGS(&(struct test_job0_args) { 32, "Hello World!", })},
-        { JOB_FUNC(test_job1), JOB_ARGS(&(struct test_job1_args) { (usz [SIZE]) {3, 4, 43}, SIZE, })},
-        { JOB_FUNC(test_job2), JOB_ARGS(&(struct test_job2_args) { 0 })}
+        {
+            JOB_FUNC(test_job0),
+            JOB_ARGS(&COMP_LIT(struct test_job0_args, 32, "Hello World!",)),
+        },
+        {
+            JOB_FUNC(test_job1),
+            JOB_ARGS(&COMP_LIT(struct test_job1_args, USZ_ARRAY(3, 4, 43), 3,)),
+        },
+        {
+            JOB_FUNC(test_job2),
+            JOB_ARGS(&COMP_LIT(struct test_job2_args, 0,)),
+        },
     };
 
-    for (usz i = 0; i < ARRAY_SIZE(job_data); ++i) {
-        job_queue_add(&jobs, &job_data[i]);
+    while (!job_queue_closing(&jobs)) {
+        job_queue_drain(&jobs);
     }
 
     return 0;

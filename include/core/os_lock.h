@@ -12,7 +12,9 @@ struct os_mutex {
 };
 
 #define os_mutex_init(lock_p) pthread_mutex_init(&(lock_p)->pmutex, NULL)
+
 #define os_mutex_lock(lock_p) pthread_mutex_lock(&(lock_p)->pmutex)
+
 #define os_mutex_unlock(lock_p) pthread_mutex_unlock(&(lock_p)->pmutex)
 #elif defined (CORE_PLATFORM_WINDOWS)
 

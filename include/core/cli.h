@@ -2,7 +2,8 @@
 #define __CORE_CLI_H__
 
 #include <core/types.h>
-#include <core/error_report.h>
+#include <core/os_file.h>
+#include <core/macros.h>
 
 enum opt_status_codes {
     OPT_NO_ERR = 0,
@@ -19,6 +20,7 @@ struct cli_args {
     usz     c;
     char    **v;
 };
+#define CLI_ARGS(...) (struct cli_args) {__VA_ARGS__}
 
 /* definition for option value */
 struct cli_opt {
@@ -38,11 +40,11 @@ struct cli_opt_result {
     /* unique enum value */
     s32 id;
     /* error code */
-    sz err_code;
+    ssz err_code;
     /* the argument of the option, if supported */
     char *arg;
     /* last cli parameter index */
-    sz opt_ind;
+    ssz opt_ind;
 };
 
 /* sentinel initializer for 'Opt_Result' */
@@ -63,11 +65,20 @@ struct cli_opt_result {
 }
 
 #define CLI_GETOPT_SUCCESS(opt) (opt.err_code == OPT_NO_ERR)
+#define CLI_GETOPT_FAILURE(opt) !(CLI_GETOPT_SUCCESS(opt))
 
 #define CLI_OPT_NULL_ENTRY 1
 struct cli_opt_result cli_getopt(const struct cli_opt opt_arr[],
-                                 usz n_ots, usz *p_counter, struct cli_args args);
+                                 usz n_opts, usz *p_counter, struct cli_args args);
+
+#define cli_args_shift(ap)  \
+    MACRO_START             \
+        ++(ap)->v;          \
+        --(ap)->c;          \
+    MACRO_END
 
 const char *cli_getopt_string_error(usz err_code);
+
+void cli_print_opts(struct os_file *file, struct cli_opt opts[], usz n_opts);
 
 #endif /* __CORE_CLI_H__ */

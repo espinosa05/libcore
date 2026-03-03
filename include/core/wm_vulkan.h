@@ -32,4 +32,4 @@ void wm_vulkan_extensions_get_required(struct wm_vulkan_extensions *wm_extension
 WM_Vulkan_Surface_Status wm_vulkan_surface_create(struct wm_vulkan_surface *surface, const struct wm_vulkan_surface_info info);
 char *wm_get_vulkan_surface_status_str(usz status);
 
-#endif /* __V2_CORE_WM_VULKAN_H__ */
+#endif /* __CORE_WM_VULKAN_H__ */

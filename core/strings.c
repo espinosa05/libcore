@@ -129,7 +129,7 @@ void cstr_format_alloc_variadic(char **buffer, const char *fmt, va_list args, us
 void cstr_format_ar(char **buffer, struct m_arena *arena, const char *fmt, ...)
 {
     va_list args;
-    va_start(args, arena);
+    va_start(args, fmt);
 
     cstr_format_variadic_ar(buffer, arena, fmt, args);
 }

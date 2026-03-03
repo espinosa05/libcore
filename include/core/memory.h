@@ -1,11 +1,11 @@
-#ifndef CORE_MEMORY_H__
-#define CORE_MEMORY_H__
+#ifndef __CORE_MEMORY_H__
+#define __CORE_MEMORY_H__
 
 #include <core/utils.h>
 #include <core/types.h>
 #include <core/cstd.h> /* memset, malloc, realloc, free */
 #include <core/platform.h>
-#include <core/buffer.h>
+#include <core/os_lock.h>
 
 enum mem_sizes {
     BYTE_SIZE   = 1,
@@ -37,31 +37,6 @@ enum mem_sizes {
         m_set(p, 0, s); \
     MACRO_END
 
-struct m_arena {
-    void *buffer;
-    usz mem_avail;
-    usz mem_used;
-    b32 heap;
-    struct os_mutex access;
-};
-#define M_ARENA(...) (struct m_arena) { __VA_ARGS__ }
-#define M_ARENA_REF(...) &M_ARENA(__VA_ARGS__)
-
-struct m_arena_info {
-    usz mem_size;
-    void *buffer;
-    b32 external;
-};
-
-void m_arena_init(struct m_arena *arena, const struct m_arena_info info);
-void *m_arena_alloc(struct m_arena *arena, usz size, usz count);
-void m_arena_destroy(struct m_arena *arena);
-
-void m_arena_save(struct m_arena *arena, usz *save);
-void m_arena_restore(struct m_arena *arena, usz save);
-
-void m_arena_clear(struct m_arena *arena);
-
 struct m_array {
     void    *data;
     usz     width;
@@ -69,6 +44,10 @@ struct m_array {
     usz     cap;
     b32     dynamic;
 };
+#define DECL_ARR(type, name) struct m_array name
+#define DECL_ARR_TYPE(type) struct m_array
+#define DECL_FUNC_PTR_ARR(type, name, ...) struct m_array name
+
 #define M_ARRAY(...) (struct m_array) { __VA_ARGS__ }
 #define M_ARRAY_INIT(buff, width, size) (struct m_array) { .data = buff, .width = width, .count = size, .cap = size, }
 #define M_ARRAY_ARG(...) M_ARRAY_INIT(__VA_ARGS__)
@@ -77,10 +56,11 @@ struct m_array {
 #define M_ARRAY_FMT "{ .data = "PTR_FMT", .width = "USZ_FMT", .count = "USZ_FMT", .cap = "USZ_FMT", .dynamic = "B32_FMT" }"
 #define M_ARRAY_FMT_ARG(a) (a).data, (a).width, (a).count, (a).cap, (a).dynamic
 
-#define GENERIC_ARRAY_ENTRY_REF(a, s, i) ((u8 *)(a)+ ((s)*(i)))
-#define GENERIC_ARRAY_ENTRY(a, s, i) *GENERIC_ARRAY_ENTRY_REF(a, s, i)
+#define M_ARRAY_GET_ELEMENT_REF(a, i, ...) (((__VA_ARGS__ *)(a).data) + (i * (a).width))
+#define M_ARRAY_GET_ELEMENT(a, i, ...) *M_ARRAY_GET_ELEMENT_REF(a, i, __VA_ARGS__)
 
-#define EACH_M_ARRAY(e, a, ...)    __VA_ARGS__ e = (__VA_ARGS__ *)(a)->data, usz i = 0; e = m_array_get_addr((a), i); ++i
+#define GENERIC_ARRAY_ENTRY_REF(a, s, i) ((u8 *)(a) + ((s)*(i)))
+#define GENERIC_ARRAY_ENTRY(a, s, i) *GENERIC_ARRAY_ENTRY_REF(a, s, i)
 
 struct m_array_info {
     void    *base;
@@ -141,13 +121,13 @@ enum m_stack_error_status_codes {
 #define M_STACK_ERROR_STATUS_COUNT (M_STACK_STATUS_COUNT - M_STACK_SUCCESSFUL_STATUS_COUNT)
 };
 
-#define M_STACK_CALL(c)                                             \
-    MACRO_START                                                     \
-        M_Stack_Status st = (c);                                    \
-        if (st >= M_STACK_SUCCESSFUL_STATUS_COUNT) {                \
-            THROW_EXCEPTION("call to '"STR_SYM(c)"' failed : %s",   \
-                            m_stack_get_status_str(st));            \
-        }                                                           \
+#define M_STACK_CALL(c)                                                 \
+    MACRO_START                                                         \
+        M_Stack_Status st = (c);                                        \
+        if (st >= M_STACK_SUCCESSFUL_STATUS_COUNT) {                    \
+            THROW_EXCEPTION("call to '"STR_SYM(c)"' failed : STR_FMT",  \
+                            m_stack_get_status_str(st));                \
+        }                                                               \
     MACRO_END
 
 M_Stack_Status m_stack_init(struct m_stack *stack, const struct m_stack_info info);
@@ -157,4 +137,4 @@ M_Stack_Status m_stack_push_array(struct m_stack *stack, const struct m_array ar
 M_Stack_Status m_stack_delete(const struct m_stack stack);
 const char *m_stack_get_status_str(usz st);
 
-#endif /* CORE_MEMORY_H__ */
+#endif /* __CORE_MEMORY_H__ */

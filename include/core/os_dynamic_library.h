@@ -27,6 +27,6 @@ struct os_library_info {
 
 void os_library_open(struct os_library *lib, const struct os_library_info info);
 void os_library_load_symbol(struct os_library *lib, void **dst, const char *symbol);
-void os_library_close(const struct os_library lib);
+void os_library_close(const struct os_library *lib);
 
 #endif /* __OS_DYNAMIC_LIBRARY_H__ */

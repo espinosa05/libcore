@@ -16,8 +16,8 @@ struct cli_opt_result cli_getopt(const struct cli_opt opt_arr[], usz n_opts, usz
     const char *arg             = NULL;
     usz counter                 = *p_counter;
 
-    ASSERT_RT(is_last_opt(opt_arr[n_opts - 1]),
-              "corrupt data! last entry of 'struct cli_opt' array needs to be {0}");
+    ASSERT(is_last_opt(opt_arr[n_opts - 1]),
+           "corrupt data! last entry of 'struct cli_opt' array needs to be {0}");
 
     res.err_code = OPT_NO_ERR;
     n_opts -= CLI_OPT_NULL_ENTRY; /* we will always ignore the last entry */
@@ -73,6 +73,20 @@ const char *cli_getopt_string_error(usz err_code)
 
     return g_error_messages[err_code];
 }
+
+void cli_print_opts(struct os_file *file, struct cli_opt opts[], usz n_opts)
+{
+    for (usz i = 0; i < n_opts - 1; ++i) {
+        if (opts[i].has_arg) {
+            F_LOG(file, STR_TAB"-"CHAR_FMT" [option], --"STR_FMT" [option] : "STR_FMT,
+                        opts[i].long_opt, opts[i].short_opt, opts[i].desc);
+        } else {
+            F_LOG(file, STR_TAB"-"CHAR_FMT", --"STR_FMT" : "STR_FMT,
+                        opts[i].long_opt, opts[i].short_opt, opts[i].desc);
+        }
+    }
+}
+
 /* constants for skipping the dashes */
 enum arg_offsets {
     SHORT_ARG_OFFSET = 1,

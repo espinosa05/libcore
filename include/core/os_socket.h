@@ -3,11 +3,7 @@
 
 #include <core/platform.h>
 #include <core/cstd.h>
-
-struct net_address {
-    u32 ipv4;
-    u16 port;
-};
+#include <core/net.h>
 
 #if defined(CORE_PLATFORM_LINUX)
 struct os_socket {
@@ -79,7 +75,7 @@ typedef usz OS_Socket_Status;
 #define OS_SOCKET_FAILURE(st) !OS_SOCKET_SUCCESS(st)
 #define OS_SOCKET_SUCCESS(st) (st == SU_STATUS_SUCCESS)
 
-struct os_socket_tcp_info {
+struct os_socket_tcp_listener_info {
     struct net_address  *net_addr;
     usz                 queue_length;
 };
@@ -96,7 +92,7 @@ OS_Socket_Status os_socket_get_sockopt(const struct os_socket *sock, sz sock_opt
 OS_Socket_Status os_socket_set_sockobj(const struct os_socket *sock, sz sock_opt, const void *sock_obj, usz size);
 OS_Socket_Status os_socket_get_sockobj(const struct os_socket *sock, sz sock_opt, void *sock_obj, usz size);
 
-OS_Socket_Status os_socket_create_tcp_socket(struct os_socket *sock, const struct os_socket_tcp_info info);
+OS_Socket_Status os_socket_create_tcp_listener(struct os_socket *sock, const struct os_socket_tcp_listener_info info);
 OS_Socket_Status os_socket_create_ipc_socket(struct os_socket *sock, const struct os_socket_ipc_info info);
 
 OS_Socket_Status os_socket_accept(const struct os_socket *server, struct os_socket *client, struct net_address *address);
@@ -105,8 +101,10 @@ OS_Socket_Status os_socket_connect(const struct os_socket *client, struct os_soc
 OS_Socket_Status os_socket_close(struct os_socket *sock);
 OS_Socket_Status os_socket_shutdown(const struct os_socket *sock, usz how);
 
-OS_Socket_Status os_socket_receive_data(const struct os_socket *sock, char *buffer, const usz buffer_size, usz size, usz flags);
-OS_Socket_Status os_socket_send_data(const struct os_socket *sock, char *buffer, const usz buffer_size, usz size, usz flags);
+OS_Socket_Status os_socket_receive_data(const struct os_socket *sock, char *buffer, usz size, usz flags);
+OS_Socket_Status os_socket_send_data(const struct os_socket *sock, char *buffer, usz size, usz flags);
+
+OS_Socket_Status os_socket_errno_code_to_status(usz socket_function, usz errno_val);
 
 char *os_socket_string_status(usz code);
 

@@ -1,6 +1,3 @@
-#define _LARGEFILE64_SOURCE
-#define _FILE_OFFSET_BITS 64
-
 #include <core/os.h>
 #include <core/os_dynamic_library.h>
 #include <core/os_streams.h>
@@ -14,17 +11,14 @@
 #include <core/memory.h>
 #include <core/cstd.h>
 #include <core/linux.h>
+#include <core/linux_syscall.h>
 #include <core/vulkan.h>
-
-
-#define OS_LINUX_SYSCALL_SUCCESS(rc) (rc >= 0)
-
 
 /* static function declaration start */
 static OS_Stream_Status open_file_stream(struct os_stream *stream, const struct os_file_info info);
-static OS_Stream_Status open_tcp_socket_stream(struct os_stream *stream, const struct os_socket_tcp_info info);
+static OS_Stream_Status open_tcp_socket_stream(struct os_stream *stream, const struct os_socket_tcp_listener_info info);
 static OS_Stream_Status open_ipc_socket_stream(struct os_stream *stream, const struct os_socket_ipc_info info);
-static OS_Socket_Status os_socket_errno_code_to_status(sz status_code, usz socket_function, usz errno_val);
+
 static void os_file_init_proc_io_handles(void);
 static void set_coredumps(void);
 static void reset_coredumps(void);
@@ -32,8 +26,10 @@ static void reset_coredumps(void);
 static void platform_shutdown(void) __FUNC_ATTR_DESTRUCTOR__;
 static void platform_init(void) __FUNC_ATTR_CONSTRUCTOR__;
 static void register_core_signal_handlers(void) __FUNC_ATTR_CONSTRUCTOR__;
-static void core_empty_handler(int signum);
-static void set_linux_signal_handler(int signum, void (*handler) (int));
+static void core_empty_handler(int sig_num);
+static void set_linux_signal_handler(int sig_num, DECL_FUNC_PTR(void, handler, int));
+
+static OS_File_Status os_file_errno_to_status(usz function, usz errno_val);
 /* static function declaration end */
 
 /* global data start */
@@ -61,7 +57,7 @@ void os_library_open(struct os_library *lib, const struct os_library_info info)
     char *actual_path_str = NULL;
     {
         struct str_builder whole_path = {0};
-        str_builder_init(&whole_path, os_get_max_path_length(path));
+        str_builder_init(&whole_path, os_get_sane_path_length(path));
         str_builder_append(&whole_path, path);
 
         if ('/' == cstr_char_at_backwards(path, 0))
@@ -81,72 +77,70 @@ void os_library_open(struct os_library *lib, const struct os_library_info info)
 
 void os_library_load_symbol(struct os_library *lib, void **dst, const char *symbol)
 {
-   *dst = dlsym(lib, symbol);
+   *dst = dlsym(lib->handle, symbol);
    ASSERT_RT(*dst, "failed to load symbol"STR_QUOT_LIT(STR_FMT)" "STR_FMT, symbol, dlerror());
 }
 
-void os_library_close(struct os_library lib)
+void os_library_close(const struct os_library *lib)
 {
-    int st = dlclose(lib.handle);
+    int st = dlclose(lib->handle);
     ASSERT_RT(st == 0, "failed to close dynamic library: "STR_FMT, dlerror());
 }
 
-enum thread_status { THREAD_FAILED = -1, THREAD_CREATED = 0, };
-OS_Thread_Status os_thread_spawn(struct os_thread *thr, void (*func) (void *), void *arg)
+OS_Thread_Status os_thread_spawn(struct os_thread *thr, DECL_FUNC_PTR(void, func, void *), void *arg)
 {
-    struct clone_args clone_args = {0};
-    struct rlimit stack_size = {0};
+    struct linux_clone_args clone_args = {0};
+    struct linux_rlimit stack_size = {0};
     void *stack_buffer = NULL;
-    OS_Thread_Status ret = OS_THREAD_STATUS_FAILURE;
 
     /* getrlimit does not return useful errors */
-    getrlimit(RLIMIT_STACK, &stack_size);
-    stack_buffer = mmap(NULL, stack_size.rlim_cur, PROT_READ | PROT_WRITE,
-                        MAP_GROWSDOWN | MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+    linux_getrlimit(RLIMIT_STACK, &stack_size);
 
-    ASSERT_RT(stack_buffer != MAP_FAILED, "failed to allocate stack for new process");
+    stack_buffer = linux_mmap(NULL, stack_size.rlim_curr, PROT_READ | PROT_WRITE,
+                              MAP_GROWSDOWN | MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
 
-    clone_args.flags         = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND;
-    clone_args.exit_signal   = SIGCHLD;
-    clone_args.stack         = (u64)stack_buffer;
-    clone_args.stack_size    = stack_size.rlim_cur;
+    if (LINUX_MMAP_FAILURE(stack_buffer))
+        return OS_THREAD_STATUS_FAILURE;
+
+    clone_args.flags         = LINUX_CLONE_VM | LINUX_CLONE_FS | LINUX_CLONE_FILES | LINUX_CLONE_SIGHAND;
+    clone_args.exit_signal   = LINUX_SIGCHLD;
+    clone_args.stack         = U64(stack_buffer);
+    clone_args.stack_size    = stack_size.rlim_curr;
 
     thr->pid = syscall(SYS_clone3, &clone_args, sizeof(clone_args));
+    if (LINUX_SYSCALL_FAILURE(thr->pid))
+        return OS_THREAD_STATUS_FAILURE;
 
-    switch (thr->pid) {
-    case THREAD_FAILED:
-        ret = OS_THREAD_STATUS_FAILED_TO_CREATE;
-        break;
-    case THREAD_CREATED:
-        INFO_LOG("thread started with PID: "USZ_FMT, thr->pid);
+    if (thr->pid != 0) {
         func(arg);
-        ret = OS_THREAD_STATUS_SUCCESS;
-        break;
     }
-    return ret;
+
+    return OS_THREAD_STATUS_SUCCESS;
 }
 
-OS_Thread_Status os_thread_join(struct os_thread *thr, void *ret)
+OS_Thread_Status os_thread_join(struct os_thread *thr)
 {
-    TODO("implement OS_ThreadJoin");
-    UNUSED(ret);
-
     int status = 0;
-    waitpid(thr->pid, &status, 0);
+    linux_waitpid(thr->pid, &status, 0);
 
-    return OS_THREAD_STATUS_SUCCESS;;
+    return OS_THREAD_STATUS_SUCCESS;
 }
 
 void os_time_get_current(struct os_time *time)
 {
-    ASSERT_RT(0 == clock_gettime(CLOCK_REALTIME, &time->time_val),
-              "couldn't get system time: "STR_FMT, get_errno_str(errno));
+    ssz st = linux_clock_gettime(CLOCK_REALTIME, &time->time_val);
+
+    if (LINUX_SYSCALL_FAILURE(st)) {
+        THROW_EXCEPTION("couldn't get system time: "STR_FMT, linux_errno_cstr(-st));
+    }
 }
 
 void os_time_get_monotonic(struct os_time *time)
 {
-    ASSERT_RT(0 == clock_gettime(CLOCK_MONOTONIC, &time->time_val),
-              "couldn't measure time start: "STR_FMT, get_errno_str(errno));
+    ssz st = linux_clock_gettime(CLOCK_MONOTONIC, &time->time_val);
+    if (LINUX_SYSCALL_FAILURE(st)) {
+        THROW_EXCEPTION("couldn't get system time: "STR_FMT, linux_errno_cstr(-st));
+    }
 }
 
 void os_time_get_diff(struct os_time *result, const struct os_time start, const struct os_time end)
@@ -167,12 +161,12 @@ u64 os_time_get_usec(const struct os_time time)
 
 f64 os_time_get_msec(const struct os_time time)
 {
-    return ((f64)os_time_get_usec(time))/1000;
+    return F64(os_time_get_usec(time))/1000;
 }
 
 usz os_time_get_sec(const struct os_time time)
 {
-    return ((usz)os_time_get_msec(time))/1000;
+    return USZ(os_time_get_msec(time))/1000;
 }
 
 void os_thread_sleep_usec(u32 usec)
@@ -196,6 +190,17 @@ void os_thread_sleep_sec(u32 sec)
 usz os_get_max_path_length(const char *path)
 {
     return pathconf(path, _PC_PATH_MAX);
+}
+
+/* os_get_max_path_length may return absurdly large values so this is preferred instead */
+usz os_get_sane_path_length(const char *path)
+{
+    usz length = os_get_max_path_length(path);
+
+    if (length > KB_SIZE)
+        length = KB_SIZE;
+
+    return length;
 }
 
 OS_Stream_Status os_stream_open(struct os_stream *stream, const struct os_stream_info info)
@@ -231,23 +236,24 @@ OS_Stream_Status os_stream_close(struct os_stream *stream)
     return OS_STREAM_STATUS_SUCCESS;
 }
 
-OS_Stream_Status os_stream_read(struct os_stream *stream, void *buffer, const usz buffer_size, const usz size)
+OS_Stream_Status os_stream_read(struct os_stream *stream, void *buffer, const usz bytes)
 {
     switch (stream->type) {
     case OS_STREAM_TYPE_IPC:
     case OS_STREAM_TYPE_NETWORK:
-        os_socket_receive_data(&stream->raw.socket, buffer, buffer_size, size, 0);
+        os_socket_receive_data(&stream->raw.socket, buffer, bytes, 0);
         break;
     case OS_STREAM_TYPE_FILE:
-        os_file_read(&stream->raw.file, buffer, buffer_size, size);
+        os_file_read(&stream->raw.file, buffer, bytes);
         break;
     case OS_STREAM_TYPE_BYTE:
-        m_buffer_read(&stream->raw.byte_buffer, buffer, buffer_size, size);
+        m_buffer_read(&stream->raw.byte_buffer, buffer, bytes);
         break;
     }
 
     return OS_STREAM_STATUS_SUCCESS;
 }
+
 enum os_file_functions {
     OS_FILE_FUNC_OPEN = 0,
     OS_FILE_FUNC_CREATE,
@@ -256,19 +262,19 @@ enum os_file_functions {
     OS_FILE_FUNC_CLOSE,
 };
 
-OS_File_Status os_file_errno_to_status(usz status, usz function, usz errnoval)
+static OS_File_Status os_file_errno_to_status(usz function, usz errno_val)
 {
-    if (status == 0)
+    if (errno_val == 0)
         return OS_FILE_STATUS_SUCCESS;
 
     switch (function) {
     case OS_FILE_FUNC_OPEN:
-        switch (errnoval) {
+        switch (errno_val) {
         case EACCES: return OS_FILE_STATUS_PERMISSION_DENIED;
         default: UNREACHABLE();
         }
     case OS_FILE_FUNC_CREATE:
-        switch (errnoval) {
+        switch (errno_val) {
         case EACCES: return OS_FILE_STATUS_PERMISSION_DENIED;
         case EEXIST: return OS_FILE_STATUS_FILE_EXISTS;
         default: UNREACHABLE();
@@ -280,20 +286,40 @@ OS_File_Status os_file_errno_to_status(usz status, usz function, usz errnoval)
     }
 }
 
-OS_Stream_Status os_stream_write(struct os_stream *stream, void *buffer, const usz buffer_size, const usz size)
+OS_Stream_Status os_stream_write(struct os_stream *stream, void *buffer, const usz bytes)
 {
     switch (stream->type) {
     case OS_STREAM_TYPE_IPC:
     case OS_STREAM_TYPE_NETWORK:
-        os_socket_send_data(&stream->raw.socket, buffer, buffer_size, size, 0);
+        os_socket_send_data(&stream->raw.socket, buffer, bytes, 0);
         break;
     case OS_STREAM_TYPE_FILE:
-        os_file_write(&stream->raw.file, buffer, buffer_size, size);
+        os_file_write(&stream->raw.file, buffer, bytes);
         break;
     case OS_STREAM_TYPE_BYTE:
-        m_buffer_write(&stream->raw.byte_buffer, buffer, buffer_size, size);
+        m_buffer_write(&stream->raw.byte_buffer, buffer, bytes);
         break;
     }
+
+    return OS_STREAM_STATUS_SUCCESS;
+}
+
+OS_Stream_Status os_stream_read_buff(struct os_stream *stream, struct m_buffer *buff, const usz bytes)
+{
+    UNUSED(stream);
+    UNUSED(buff);
+    UNUSED(bytes);
+    IMPL();
+
+    return OS_STREAM_STATUS_SUCCESS;
+}
+
+OS_Stream_Status os_stream_write_buff(struct os_stream *stream, struct m_buffer *buff, const usz bytes)
+{
+    UNUSED(stream);
+    UNUSED(buff);
+    UNUSED(bytes);
+    IMPL();
 
     return OS_STREAM_STATUS_SUCCESS;
 }
@@ -306,20 +332,19 @@ OS_Stream_Status os_stream_printf(struct os_stream *stream, const char *fmt, ...
 
     va_start(args, fmt);
     cstr_format_alloc_variadic(&buffer, fmt, args, &mesage_length);
-    os_stream_write(stream, buffer, mesage_length, mesage_length);
+    os_stream_write(stream, buffer, mesage_length);
 
     m_free(buffer);
 
     return OS_STREAM_STATUS_SUCCESS;
 }
 
-
 OS_File_Status os_file_open(struct os_file *f, const struct os_file_info info)
 {
-    sz st = open(info.path, info.perm);
-    if (!OS_LINUX_SYSCALL_SUCCESS(st)) {
+    ssz st = linux_open(info.path, info.perm);
+    if (LINUX_SYSCALL_FAILURE(st)) {
         f->handle = OS_FILE_INVALID;
-        return os_file_errno_to_status(st, OS_FILE_FUNC_OPEN, errno);
+        return os_file_errno_to_status(OS_FILE_FUNC_OPEN, USZ(-st));
     }
 
     f->handle = st;
@@ -329,11 +354,11 @@ OS_File_Status os_file_open(struct os_file *f, const struct os_file_info info)
 
 OS_File_Status os_file_create(struct os_file *f, const struct os_file_info info)
 {
-    u32 fd_perm = info.perm | O_CREAT; /* the user does not need to know this happens */
-    sz st = open(info.path, fd_perm, S_IWUSR);
-    if (!OS_LINUX_SYSCALL_SUCCESS(st)) {
+    u32 fd_perm = info.perm | LINUX_O_CREAT; /* the user does not need to know this happens */
+    ssz st = linux_open_mode(info.path, fd_perm, LINUX_S_IWUSR);
+    if (LINUX_SYSCALL_FAILURE(st)) {
         f->handle = OS_FILE_INVALID;
-        return os_file_errno_to_status(st, OS_FILE_FUNC_CREATE, errno);
+        return os_file_errno_to_status(OS_FILE_FUNC_CREATE, USZ(-st));
     }
 
     f->handle = st;
@@ -341,24 +366,49 @@ OS_File_Status os_file_create(struct os_file *f, const struct os_file_info info)
     return OS_FILE_STATUS_SUCCESS;
 }
 
-OS_File_Status os_file_read(const struct os_file *f, void *buffer, const usz buffer_size, const usz bytes)
+OS_File_Status os_file_read(const struct os_file *f, void *buffer, const usz bytes)
 {
-    TODO("error handling");
-    ASSERT(bytes <= buffer_size, "out of bounds read!");
-    sz st = read(f->handle, buffer, bytes);
-    if (!OS_LINUX_SYSCALL_SUCCESS(st)) {
-        return os_file_errno_to_status(st, OS_FILE_FUNC_READ, errno);
+    ssz st = linux_read(f->handle, buffer, bytes);
+    if (LINUX_SYSCALL_FAILURE(st)) {
+        return os_file_errno_to_status(OS_FILE_FUNC_READ, USZ(-st));
     }
 
     return OS_FILE_STATUS_SUCCESS;
 }
 
-OS_File_Status os_file_write(const struct os_file *f, const void *buffer, const usz buffer_size, const usz bytes)
+OS_File_Status os_file_write(const struct os_file *f, const void *buffer, const usz bytes)
 {
-    ASSERT(bytes <= buffer_size, "out of bounds write!");
-    sz st = write(f->handle, buffer, bytes);
-    if (!OS_LINUX_SYSCALL_SUCCESS(st)) {
-        return os_file_errno_to_status(st, OS_FILE_FUNC_WRITE, errno);
+    ssz st = linux_write(f->handle, buffer, bytes);
+    if (LINUX_SYSCALL_FAILURE(st)) {
+        return os_file_errno_to_status(OS_FILE_FUNC_WRITE, USZ(-st));
+    }
+
+    return OS_FILE_STATUS_SUCCESS;
+}
+
+OS_File_Status os_file_read_buff(struct os_file *f, usz bytes, struct m_buffer *buff)
+{
+    if (bytes > (buff->size - buff->cursor)) {
+        return OS_FILE_STATUS_DESTINATION_NOT_BIG_ENOUGH;
+    }
+
+    ssz st = linux_read(f->handle, buff->base, bytes);
+    if (LINUX_SYSCALL_FAILURE(st)) {
+        return os_file_errno_to_status(OS_FILE_FUNC_WRITE, USZ(-st));
+    }
+
+    return OS_FILE_STATUS_SUCCESS;
+}
+
+OS_File_Status os_file_write_buff(struct os_file *f, usz bytes, struct m_buffer *buff)
+{
+    if (bytes > (buff->size - buff->cursor)) {
+        return OS_FILE_STATUS_SOURCE_NOT_BIG_ENOUGH;
+    }
+
+    ssz st = linux_read(f->handle, buff->base, bytes);
+    if (LINUX_SYSCALL_FAILURE(st)) {
+        return os_file_errno_to_status(OS_FILE_FUNC_READ, USZ(-st));
     }
 
     return OS_FILE_STATUS_SUCCESS;
@@ -372,7 +422,7 @@ OS_File_Status os_file_printf(const struct os_file *f, const char *fmt, ...)
 
     va_start(args, fmt);
     cstr_format_alloc_variadic(&msg, fmt, args, &msg_length);
-    usz st = os_file_write(f, msg, msg_length, msg_length);
+    usz st = os_file_write(f, msg, msg_length);
     m_free(msg);
 
     return st;
@@ -383,8 +433,8 @@ OS_File_Status os_file_close(struct os_file *f)
     TODO("error handling");
     sz st = close(f->handle);
 
-    if (!OS_LINUX_SYSCALL_SUCCESS(st))
-        return os_file_errno_to_status(st, OS_FILE_FUNC_CLOSE, errno);
+    if (!LINUX_SYSCALL_SUCCESS(st))
+        return os_file_errno_to_status(OS_FILE_FUNC_CLOSE, USZ(-st));
 
     f->handle = OS_FILE_INVALID;
 
@@ -401,9 +451,9 @@ void os_file_flush(const struct os_file *f)
 void os_dir_open(struct os_dir *dir, const struct os_dir_info info)
 {
     u32 perm = info.perm | O_DIRECTORY;
-    sz st = open(info.path, info.perm);
+    ssz st = linux_open(info.path, perm);
 
-    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "failed to open directory!");
+    ASSERT_RT(LINUX_SYSCALL_SUCCESS(st), "failed to open directory!");
 
     dir->path = info.path;
     dir->handle = st;
@@ -412,66 +462,71 @@ void os_dir_open(struct os_dir *dir, const struct os_dir_info info)
 void os_dir_create(struct os_dir *dir, const struct os_dir_info info)
 {
     u32 perm = info.perm | O_DIRECTORY | O_CREAT;
-    sz st = open(info.path, info.perm);
+    u64 mode = S_IRUSR;
+    ssz st = linux_open_mode(info.path, perm, mode);
 
-    ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "failed to create directory!");
+    ASSERT_RT(LINUX_SYSCALL_SUCCESS(st), "failed to create directory!");
 
     dir->handle = st;
 }
 
-/* custom definition of linux dirent 64 structure */
-struct linux_dirent64 {
-    u64             d_ino;
-    s64             d_off;
-    unsigned short  d_reclen;
-    unsigned char   d_type;
-    char            d_name[];
-};
+#define INIT_PATH_ARRAY_COUNT 16
 
-#define INIT_PATH_ARRAY_COUNT 32
-void os_dir_get_file_paths(const struct os_dir *dir, struct m_array *paths)
+OS_Dir_Status os_dir_get_file_paths(const struct os_dir *dir, struct m_array *paths)
 {
-    usz max_path = os_get_max_path_length(dir->path);
+    usz path_cap = os_get_sane_path_length(dir->path);
+    OS_Dir_Status ret = OS_DIR_STATUS_SUCCESS;
     m_array_init(paths, sizeof(char *), INIT_PATH_ARRAY_COUNT);
 
-    usz buff_size = sizeof(struct linux_dirent64) + max_path;
+    usz buff_size = sizeof(struct linux_dirent64) + path_cap + NULL_TERM_SIZE;
     struct m_buffer buffer = {0};
     struct m_buffer_info buffer_info = {
-        .buffer = m_alloc(BYTE_SIZE, buff_size),
-        .size   = buff_size,
+        .size       = buff_size,
+        .dynamic    = TRUE,
     };
     m_buffer_init(&buffer, buffer_info);
 
     struct linux_dirent64 *dir_entry = NULL;
+
     while (TRUE) {
         usz bytes_read = 0;
-        usz st = syscall(SYS_getdents, dir->handle, buffer.base, buffer.size);
-        ASSERT_RT(OS_LINUX_SYSCALL_SUCCESS(st), "failed to read directory entry: "STR_FMT, strerror(errno));
-
-        bytes_read = st;
-        if (bytes_read == 0)
+        ssz st = linux_getdents64(dir->handle, buffer.base, buffer.size);
+        if (LINUX_SYSCALL_FAILURE(st)) {
+            ERROR_LOG("failed to get directory entry : "STR_FMT, linux_errno_cstr(USZ(-st)));
+            ret = OS_DIR_STATUS_FAILURE;
             break;
+        }
 
-        for (usz offset = 0; offset < bytes_read; bytes_read += dir_entry->d_reclen) {
-            dir_entry = (struct linux_dirent64 *)&U8_ARRAY_ELEMENT(buffer.base, offset);
-            if (dir_entry->d_type == DT_REG)
+        bytes_read = USZ(st);
+        if (bytes_read == 0) {
+            /* resize and retry */
+            m_buffer_resize(&buffer, buffer.size + KB_SIZE/2);
+            continue;
+        }
+
+        for (usz offset = 0; offset < bytes_read; offset += dir_entry->d_reclen) {
+            dir_entry = LINUX_DIRENT64_REF(U8_PTR(buffer.base) + offset);
+            if (dir_entry->d_type == DT_REG) {
                 m_array_append(paths, cstr_duplicate(dir_entry->d_name));
+            }
         }
     }
 
-    m_free(buffer.base);
+    m_buffer_delete(&buffer);
+
+    return ret;
 }
 
 void os_dir_cleanup_paths(struct m_array paths)
 {
     for (usz i = 0; i < paths.count; ++i) {
-        m_free(m_array_get_addr(paths, i));
+        m_free(m_array_get_addr(&paths, i));
     }
 }
 
 void os_dir_close(const struct os_dir *dir)
 {
-    close(dir->handle);
+    linux_close(dir->handle);
 }
 
 
@@ -507,57 +562,61 @@ enum socket_functions {
 #define SOCKOPT_DISABLE &(int) {0}
 OS_Socket_Status os_socket_enable_sockopt(const struct os_socket *sock, sz sock_opt)
 {
-    sz st = setsockopt(sock->handle, SOL_SOCKET, sock_opt, SOCKOPT_ENABLE, sizeof(int));
-    return os_socket_errno_code_to_status(st, SOCK_FN_SETSOCKOPT, errno);
+    ssz st = linux_setsockopt(sock->handle, SOL_SOCKET, sock_opt, SOCKOPT_ENABLE, sizeof(int));
+    return os_socket_errno_code_to_status(SOCK_FN_SETSOCKOPT, USZ(-st));
 }
 
 OS_Socket_Status os_socket_disable_sock_opt(const struct os_socket *sock, sz sock_opt)
 {
-    sz st = setsockopt(sock->handle, SOL_SOCKET, sock_opt, SOCKOPT_DISABLE, (socklen_t) {sizeof(int)});
-    return os_socket_errno_code_to_status(st, SOCK_FN_SETSOCKOPT, errno);
+    usz socklen = sizeof(int);
+    ssz st = linux_setsockopt(sock->handle, SOL_SOCKET, sock_opt, SOCKOPT_DISABLE, socklen);
+    return os_socket_errno_code_to_status(SOCK_FN_SETSOCKOPT, USZ(-st));
 }
 
 OS_Socket_Status os_socket_get_sockopt(const struct os_socket *sock, sz sock_opt, sz *value)
 {
-    sz st = getsockopt(sock->handle, SOL_SOCKET, sock_opt, value, &(socklen_t) {sizeof(value)});
-    return os_socket_errno_code_to_status(st, SOCK_FN_GETSOCKOPT, errno);
+    usz socklen = sizeof(int);
+    ssz st = linux_getsockopt(sock->handle, SOL_SOCKET, sock_opt, value, &socklen);
+    return os_socket_errno_code_to_status(SOCK_FN_GETSOCKOPT, USZ(-st));
 }
 
 OS_Socket_Status os_socket_set_sockobj(const struct os_socket *sock, sz sock_opt, const void *sock_obj, usz size)
 {
-    sz st = setsockopt(sock->handle, SOL_SOCKET, sock_opt, sock_obj, size);
-    return os_socket_errno_code_to_status(st, SOCK_FN_SETSOCKOPT, errno);
+    ssz st = linux_setsockopt(sock->handle, SOL_SOCKET, sock_opt, sock_obj, size);
+    return os_socket_errno_code_to_status(SOCK_FN_SETSOCKOPT, USZ(-st));
 }
 
 OS_Socket_Status os_socket_get_sockobj(const struct os_socket *sock, sz sock_opt, void *sock_obj, usz size)
 {
-    sz st = getsockopt(sock->handle, SOL_SOCKET, sock_opt, sock_obj, &(socklen_t) {size});
-    return os_socket_errno_code_to_status(st, SOCK_FN_GETSOCKOPT, errno);
+    ssz st = getsockopt(sock->handle, SOL_SOCKET, sock_opt, sock_obj, &(socklen_t) {size});
+    return os_socket_errno_code_to_status(SOCK_FN_GETSOCKOPT, USZ(-st));
 }
 
-OS_Socket_Status os_socket_create_tcp_socket(struct os_socket *sock, const struct os_socket_tcp_info info)
+OS_Socket_Status os_socket_create_tcp_listener(struct os_socket *sock, const struct os_socket_tcp_listener_info info)
 {
     CHECK_NULL(info.net_addr);
 
-    struct sockaddr_in socket_address = {0};
-    sz st = 0;
+    struct linux_sockaddr_in socket_address = {0};
+    ssz st = 0;
 
-    st = socket(AF_INET, SOCK_STREAM, 0);
-    if (!OS_LINUX_SYSCALL_SUCCESS(st))
-        return os_socket_errno_code_to_status(st, SOCK_FN_SOCKET, errno);
+    st = linux_socket(LINUX_SOCKET_AF_INET, LINUX_SOCKET_TYPE_STREAM, LINUX_SOCKET_PROTOCOL_TYPE_TCP);
+    if (!LINUX_SYSCALL_SUCCESS(st))
+        return os_socket_errno_code_to_status(SOCK_FN_SOCKET, USZ(-st));
 
     sock->handle = st;
-    socket_address.sin_family        = AF_INET;
-    socket_address.sin_addr.s_addr   = info.net_addr->ipv4;
-    socket_address.sin_port          = info.net_addr->port;
+    socket_address.family   = LINUX_SOCKET_AF_INET;
+    socket_address.addr     = net_u32(info.net_addr->ipv4);
+    socket_address.port     = net_u16(info.net_addr->port);
 
-    st = bind(sock->handle, (struct sockaddr *)&socket_address, sizeof(socket_address));
-    if (!OS_LINUX_SYSCALL_SUCCESS(st))
-        return os_socket_errno_code_to_status(st, SOCK_FN_BIND, errno);
+    st = linux_bind(sock->handle, &socket_address, sizeof(socket_address));
+    if (!LINUX_SYSCALL_SUCCESS(st))
+        return os_socket_errno_code_to_status(SOCK_FN_BIND, USZ(-st));
 
-    st = listen(sock->handle, info.queue_length);
+    st = linux_listen(sock->handle, info.queue_length);
+    if (!LINUX_SYSCALL_SUCCESS(st))
+        return os_socket_errno_code_to_status(SOCK_FN_LISTEN, USZ(-st));
 
-    return os_socket_errno_code_to_status(st, SOCK_FN_LISTEN, errno);
+    return OS_SOCKET_STATUS_SUCCESS;
 }
 
 OS_Socket_Status os_socket_create_ipc_socket(struct os_socket *sock, const struct os_socket_ipc_info info)
@@ -576,94 +635,68 @@ OS_Socket_Status os_socket_bind_path(const struct os_socket *sock)
 
 OS_Socket_Status os_socket_accept(const struct os_socket *server, struct os_socket *client, struct net_address *address)
 {
-    sz st = 0;
-    struct sockaddr_in socket_address = {0};
-    st = accept(server->handle, (struct sockaddr *)&socket_address, &(socklen_t) {sizeof(socket_address)});
-    if (!OS_LINUX_SYSCALL_SUCCESS(st))
-        return os_socket_errno_code_to_status(st, SOCK_FN_ACCEPT, errno);
+    ssz st = 0;
+    struct linux_sockaddr_in socket_address = {0};
+    st = linux_accept(server->handle, LINUX_SOCKADDR(&socket_address), USZ_REF(sizeof(socket_address)));
+    if (!LINUX_SYSCALL_SUCCESS(st))
+        return os_socket_errno_code_to_status(SOCK_FN_ACCEPT, USZ(-st));
 
     client->handle = st;
-    address->ipv4 = socket_address.sin_addr.s_addr;
-    address->port = socket_address.sin_port;
+    address->ipv4 = socket_address.addr;
+    address->port = socket_address.port;
 
     return OS_SOCKET_STATUS_SUCCESS;
 }
 
 OS_Socket_Status os_socket_connect(const struct os_socket *client, struct os_socket *server, const struct net_address address)
 {
-    usz st = 0;
-    struct sockaddr_in socket_address = {
-        .sin_addr.s_addr    = address.ipv4,
-        .sin_port           = address.port,
+    ssz st = 0;
+    struct linux_sockaddr_in socket_address = {
+        .addr = address.ipv4,
+        .port = address.port,
     };
 
-    st = connect(client->handle, (struct sockaddr *)&socket_address, sizeof(socket_address));
+    st = linux_connect(client->handle, LINUX_SOCKADDR(&socket_address), sizeof(socket_address));
     server->handle = st;
 
-    return os_socket_errno_code_to_status(st, SOCK_FN_CONNECT, errno);
+    return os_socket_errno_code_to_status(SOCK_FN_CONNECT, USZ(-st));
 }
 
 OS_Socket_Status os_socket_close(struct os_socket *sock)
 {
-    sz st = 0;
-    st = close(sock->handle);
+    ssz st = 0;
+    st = linux_close(sock->handle);
     sock->handle = OS_SOCKET_INVALID;
-    return os_socket_errno_code_to_status(st, SOCK_FN_CLOSE, errno);
+    return os_socket_errno_code_to_status(SOCK_FN_CLOSE, USZ(-st));
 }
 
 OS_Socket_Status os_socket_shutdown(const struct os_socket *sock, usz how)
 {
-    sz st = 0;
-    st = shutdown(sock->handle, how);
+    ssz st = 0;
+    st = linux_shutdown(sock->handle, how);
 
-    return os_socket_errno_code_to_status(st, SOCK_FN_SHUTDOWN, errno);
+    return os_socket_errno_code_to_status(SOCK_FN_SHUTDOWN, USZ(-st));
 }
 
-OS_Socket_Status os_socket_receive_data(const struct os_socket *sock, char *buffer, const usz buffer_size, usz size, usz flags)
+OS_Socket_Status os_socket_receive_data(const struct os_socket *sock, char *buffer, usz size, usz flags)
 {
-    sz st = 0;
+    ssz st = 0;
+    st = linux_recv(sock->handle, buffer, size, flags);
 
-    if (size > buffer_size) {
-        return OS_SOCKET_STATUS_OUT_OF_BOUNDS_READ;
-    }
-    st = recv(sock->handle, buffer, size, flags);
-
-    return os_socket_errno_code_to_status(st, SOCK_FN_RECV, errno);
+    return os_socket_errno_code_to_status(SOCK_FN_RECV, USZ(-st));
 }
 
-OS_Socket_Status os_socket_send_data(const struct os_socket *sock, char *buffer, const usz buffer_size, usz size, usz flags)
+OS_Socket_Status os_socket_send_data(const struct os_socket *sock, char *buffer, usz size, usz flags)
 {
-    sz st = 0;
+    ssz st = 0;
+    st = linux_send(sock->handle, buffer, size, flags);
 
-    if (size > buffer_size) {
-        return OS_SOCKET_STATUS_OUT_OF_BOUNDS_WRITE;
-    }
-    st = send(sock->handle, buffer, size, flags);
-
-    return os_socket_errno_code_to_status(st, SOCK_FN_SEND, errno);
+    return os_socket_errno_code_to_status(SOCK_FN_SEND, USZ(-st));
 }
 
-void os_util_strip_file_extension_ar(const char *file_name, char **dst, struct m_arena *arena)
+OS_Socket_Status os_socket_errno_code_to_status(usz socket_function, usz errno_val)
 {
-    /* walk backwards until a period is hit */
-    usz length = 0;
-    *dst = NULL;
-    length = cstr_length(file_name);
-
-    for (usz i = length - 1; i > 0; i--) {
-        if ('.' == file_name[i]) {
-            usz stripped_length = length - i;
-            *dst = m_arena_alloc(arena, sizeof(**dst), stripped_length + NULL_TERM_SIZE);
-            cstr_copy(*dst, file_name, stripped_length);
-            break;
-        }
-    }
-}
-
-/* big ugly function... don't blame me. Blame horrily outdated POSIX errors */
-static OS_Socket_Status os_socket_errno_code_to_status(sz status_code, usz socket_function, usz errno_val)
-{
-    if (status_code == 0)
+    if (errno_val == 0)
         return OS_SOCKET_STATUS_SUCCESS;
 
     switch (socket_function) {
@@ -822,15 +855,36 @@ char *os_socket_string_status(usz code)
     return g_os_socket_status_code_strings[code];
 }
 
+void os_util_strip_file_extension_ar(const char *file_name, char **dst, struct m_arena *arena)
+{
+    /* walk backwards until a period is hit */
+    usz length = 0;
+    char *stripped = NULL;
+    length = cstr_length(file_name);
+
+    for (usz i = length - 1; i > 0; i--) {
+        if ('.' == file_name[i]) {
+            usz stripped_length = length - i;
+            stripped = m_arena_alloc(arena, sizeof(*stripped), stripped_length + NULL_TERM_SIZE);
+            cstr_copy(*dst, file_name, stripped_length);
+            break;
+        }
+    }
+
+    *dst = stripped;
+}
+
+
+
 static OS_Stream_Status open_file_stream(struct os_stream *stream, const struct os_file_info info)
 {
     os_file_open(&stream->raw.file, info);
     return OS_STREAM_STATUS_SUCCESS;
 }
 
-static OS_Stream_Status open_tcp_socket_stream(struct os_stream *stream, const struct os_socket_tcp_info info)
+static OS_Stream_Status open_tcp_socket_stream(struct os_stream *stream, const struct os_socket_tcp_listener_info info)
 {
-    os_socket_create_tcp_socket(&stream->raw.socket, info);
+    os_socket_create_tcp_listener(&stream->raw.socket, info);
     return OS_STREAM_STATUS_SUCCESS;
 }
 
@@ -853,12 +907,12 @@ static void platform_shutdown(void)
     reset_coredumps();
 }
 
-enum linux_default_io_fds { OS_LINUX_STDIN = STDIN_FILENO, OS_LINUX_STDOUT = STDOUT_FILENO, OS_LINUX_STDERR = STDERR_FILENO, };
+enum linux_default_io_fds { LINUX_STDIN = 0, LINUX_STDOUT = 1, LINUX_STDERR = 2, };
 static void os_file_init_proc_io_handles(void)
 {
-    g_os_stdin  = (struct os_file) { .handle = OS_LINUX_STDIN };
-    g_os_stdout = (struct os_file) { .handle = OS_LINUX_STDOUT };
-    g_os_stderr = (struct os_file) { .handle = OS_LINUX_STDERR };
+    g_os_stdin  = (struct os_file) { .handle = LINUX_STDIN };
+    g_os_stdout = (struct os_file) { .handle = LINUX_STDOUT };
+    g_os_stderr = (struct os_file) { .handle = LINUX_STDERR };
 
     OS_STDIN    = &g_os_stdin;
     OS_STDOUT   = &g_os_stdout;
@@ -869,28 +923,25 @@ static void os_file_init_proc_io_handles(void)
 
 static void set_coredumps(void)
 {
-    IMPL();
 }
 
 static void reset_coredumps(void)
 {
-    IMPL();
 }
 
 static void register_core_signal_handlers(void)
 {
-    set_linux_signal_handler(SIGINT,    core_empty_handler);
-    set_linux_signal_handler(SIGSEGV,   core_empty_handler);
-    set_linux_signal_handler(SIGABRT,   core_empty_handler);
+    set_linux_signal_handler(LINUX_SIGINT,    core_empty_handler);
 }
 
-static void core_empty_handler(int signum)
+static void core_empty_handler(int sig_num)
 {
-    UNUSED(signum);
+    INFO_LOG("caught linux signal: "STR_FMT, linux_signal_str(sig_num));
+    WARN_LOG("exiting...");
     ABORT();
 }
 
-static void set_linux_signal_handler(int signum, void (*handler) (int))
+static void set_linux_signal_handler(int sig_num, DECL_FUNC_PTR(void, handler, int))
 {
-    signal(signum, handler);
+    linux_signal(sig_num, handler);
 }

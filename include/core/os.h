@@ -2,13 +2,8 @@
 #define __CORE_OS_H__
 
 #include <core/types.h>
-#include <core/utils.h>
-#include <core/os_streams.h>
-#include <core/os_thread.h>
-#include <core/os_path.h>
-#include <core/os_file.h>
-#include <core/os_lock.h>
 #include <core/platform.h>
+
 enum os_exit_codes {
     OS_EXIT_SUCCESS = 0,
     OS_EXIT_FAILURE = 1,
@@ -22,6 +17,7 @@ enum os_exit_codes {
 #   include "os_macos_defs.h"
 #endif /* CORE_PLATFORM_LINUX */
 usz os_get_max_path_length(const char *path);
+usz os_get_sane_path_length(const char *path);
 
 /* for accurate Unix-Time value */
 void os_time_get_current(struct os_time *time);
@@ -32,6 +28,10 @@ void os_time_get_diff(struct os_time *result, const struct os_time start, const 
 u64 os_time_get_usec(const struct os_time time);
 f64 os_time_get_msec(const struct os_time time);
 usz os_time_get_sec(const struct os_time time);
+
+#define OS_TIME(...) (struct os_time) {__VA_ARGS__}
+
+#define os_time_init(t) *(t) = OS_TIME(0)
 
 #define os_exit(code) exit(code)
 

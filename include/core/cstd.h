@@ -10,7 +10,9 @@
 #include <locale.h>
 #include <math.h>
 #include <setjmp.h>
+#if 0
 #include <signal.h>
+#endif
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -27,7 +29,9 @@
 #include <core/platform.h>
 
 #ifdef CORE_PLATFORM_LINUX
+
 #define _GNU_SOURCE
+
 #include <alloca.h>
 #include <dirent.h>
 #include <dlfcn.h>
@@ -67,7 +71,9 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/utsname.h>
+#if 0
 #include <sys/wait.h>
+#endif
 #include <termios.h>
 #include <unistd.h>
 #include <netinet/in.h>

@@ -3,7 +3,7 @@
 
 #include <core/os_file.h>
 #include <core/os_socket.h>
-#include <core/memory.h>
+#include <core/buffer.h>
 #include <core/types.h>
 #include <core/utils.h>
 
@@ -18,10 +18,10 @@ enum os_stream_types {
 struct os_stream_info {
     usz type;
     union {
-        struct os_socket_ipc_info   *ipc_info;
-        struct os_socket_tcp_info   *tcp_info;
-        struct os_file_info         *file_info;
-        struct m_buffer_info        *byte_buffer_info;
+        struct os_socket_ipc_info               *ipc_info;
+        struct os_socket_tcp_listener_info      *tcp_info;
+        struct os_file_info                     *file_info;
+        struct m_buffer_info                    *byte_buffer_info;
     } raw;
 };
 
@@ -44,10 +44,12 @@ typedef usz OS_Stream_Status;
 
 OS_Stream_Status os_stream_open(struct os_stream *stream, const struct os_stream_info info);
 OS_Stream_Status os_stream_close(struct os_stream *stream);
-OS_Stream_Status os_stream_read(struct os_stream *stream, void *buffer, const usz buffer_size, const usz size);
-OS_Stream_Status os_stream_write(struct os_stream *stream, void *buffer, const usz buffer_size, const usz size);
-OS_Stream_Status os_stream_printf(struct os_stream *stream, const char *fmt, ...);
+OS_Stream_Status os_stream_read(struct os_stream *stream, void *buffer, const usz bytes);
+OS_Stream_Status os_stream_write(struct os_stream *stream, void *buffer, const usz bytes);
+OS_Stream_Status os_stream_read_buff(struct os_stream *stream, struct m_buffer *buff, const usz bytes);
+OS_Stream_Status os_stream_write_buff(struct os_stream *stream, struct m_buffer *buff, const usz bytes);
 
+OS_Stream_Status os_stream_printf(struct os_stream *stream, const char *fmt, ...);
 #if 0
 OS_StreamStatus OS_StreamOpenAsync(OS_Stream *stream, const OS_StreamCreateInfo *info);
 OS_StreamStatus OS_StreamCloseAsync(OS_Stream *stream);
@@ -56,4 +58,5 @@ OS_StreamStatus OS_StreamReadAsync(OS_Stream *stream, void *buffer, const usz si
 OS_StreamStatus OS_StreamWriteAsync(OS_Stream *stream, const void *buffer, const usz size);
 OS_StreamStatus OS_StreamPrintfAsync(OS_Stream *stream, const char *fmt, ...);
 #endif
+
 #endif /* __CORE_OS_STREAMS_H__ */

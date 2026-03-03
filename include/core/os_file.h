@@ -4,10 +4,13 @@
 #include <core/platform.h>
 #include <core/cstd.h>
 #include <core/types.h>
+#include <core/buffer.h>
 
 #if defined(CORE_PLATFORM_LINUX)
 struct os_file {
     int handle;
+    usz size;
+    usz cursor;
 };
 enum file_perm {
     FPERM_READ = O_RDONLY,
@@ -20,6 +23,8 @@ enum file_perm {
 #elif defined(CORE_PLATFORM_WINDOWS)
 struct os_file {
     HANDLE handle;
+    usz size;
+    usz cursor;
 };
 enum file_perm {
     FPERM_READ = GENERIC_READ,
@@ -40,7 +45,10 @@ enum os_file_status_codes {
     OS_FILE_STATUS_SUCCESS = 0,
     OS_FILE_STATUS_PERMISSION_DENIED,
     OS_FILE_STATUS_FILE_EXISTS,
+    OS_FILE_STATUS_SOURCE_NOT_BIG_ENOUGH,
+    OS_FILE_STATUS_DESTINATION_NOT_BIG_ENOUGH,
 };
+
 typedef usz OS_File_Status;
 
 extern struct os_file *OS_STDIN;
@@ -49,8 +57,12 @@ extern struct os_file *OS_STDERR;
 
 OS_File_Status os_file_open(struct os_file *f, const struct os_file_info info);
 OS_File_Status os_file_create(struct os_file *f, const struct os_file_info info);
-OS_File_Status os_file_read(const struct os_file *f, void *buffer, const usz buffer_size, const usz bytes);
-OS_File_Status os_file_write(const struct os_file *f, const void *buffer, const usz buffer_size, const usz bytes);
+OS_File_Status os_file_read(const struct os_file *f, void *buffer, const usz bytes);
+OS_File_Status os_file_write(const struct os_file *f, const void *buffer, const usz bytes);
+
+OS_File_Status os_file_read_buff(struct os_file *f, usz bytes, struct m_buffer *buff);
+OS_File_Status os_file_write_buff(struct os_file *f, usz bytes, struct m_buffer *buff);
+
 OS_File_Status os_file_printf(const struct os_file *f, const char *fmt, ...);
 OS_File_Status os_file_close(struct os_file *f);
 void os_file_flush(const struct os_file *f);
