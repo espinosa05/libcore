@@ -278,7 +278,6 @@ void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event
     m_free(xcb_event);
 }
 
-
 static b32 supported_window_resolution(const struct wm_window_info info)
 {
     UNUSED(info);
