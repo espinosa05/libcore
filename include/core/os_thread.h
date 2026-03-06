@@ -14,7 +14,7 @@ enum os_thread_status_codes {
     OS_THREAD_STATUS_COUNT,
 };
 
-OS_Thread_Status os_thread_spawn(struct os_thread *thr, DECL_FUNC_PTR(void, func, void *), void *arg);
+OS_Thread_Status os_thread_spawn(struct os_thread *thr, void (*func) (void *), void *arg);
 OS_Thread_Status os_thread_join(struct os_thread *thr);
 OS_Thread_Status os_thread_get_id(struct os_thread *thr, usz *tid);
 OS_Thread_Status os_thread_detatch(struct os_thread *thr);

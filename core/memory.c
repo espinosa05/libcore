@@ -24,7 +24,7 @@ void *m_arena_alloc(struct m_arena *arena, usz size, usz count)
     arena->mem_used += size * count;
 
     if (arena->mem_used <= arena->mem_avail)
-        buff = (u8 *)arena->buffer + arena->mem_used;
+        buff = U8_PTR(arena->buffer) + arena->mem_used;
 
     os_mutex_unlock(&arena->access);
 
@@ -52,7 +52,7 @@ void *m_arena_alloc_claimed(struct m_arena *arena, usz size, usz count)
     arena->mem_used += size * count;
 
     if (arena->mem_used <= arena->mem_avail)
-        buff = (u8 *)arena->buffer + arena->mem_used;
+        buff = U8_PTR(arena->buffer) + arena->mem_used;
 
     return buff;
 }
@@ -171,7 +171,7 @@ void *m_array_get_addr(const struct m_array *array, usz index)
                                   array->data,
                                   index * array->width);
 
-    return GENERIC_ARRAY_ENTRY_REF(array->data, array->width, index);
+    return U8_PTR(array->data) + (array->width + index);
 }
 
 void m_array_append(struct m_array *array, void *element)
@@ -200,8 +200,8 @@ M_Stack_Status m_stack_init(struct m_stack *stack, const struct m_stack_info inf
     stack->sp = 0;
 
     if (info.external) {
-        ASSERT(info.cap, "[BUG] "STR_SYM(info.cap)" should be non-zero for externally managed buffers!");
-        ASSERT(info.buffer, "[BUG] "STR_SYM(info.base)" should point to a buffer of size %d!", info.cap);
+        ASSERT_RT(info.cap, "[BUG] "STR_SYM(info.cap)" should be non-zero for externally managed buffers!");
+        ASSERT_RT(info.buffer, "[BUG] "STR_SYM(info.base)" should point to a buffer of size "USZ_FMT"!", info.cap);
         stack->base = info.buffer;
     } else {
         usz init_cap = info.cap ? info.cap : M_STACK_DEFAULT_INIT_CAPACITY;
@@ -217,7 +217,7 @@ M_Stack_Status m_stack_push(struct m_stack *stack, const void *element)
         return M_STACK_STATUS_EXHAUSTED;
 
     usz offset = stack->sp * stack->element_size;
-    m_copy((u8 *)stack->base + offset, element, stack->element_size);
+    m_copy(U8_PTR(stack->base) + offset, element, stack->element_size);
 
     if (stack->sp == stack->cap - 1)
         return M_STACK_STATUS_LAST_ELEMENT;
@@ -230,7 +230,7 @@ M_Stack_Status m_stack_push(struct m_stack *stack, const void *element)
 M_Stack_Status m_stack_pop(struct m_stack *stack, void *element)
 {
     usz offset = stack->sp * stack->element_size;
-    m_copy(element, (u8 *)stack->base + offset, stack->element_size);
+    m_copy(element, U8_PTR(stack->base) + offset, stack->element_size);
 
     if (stack->sp == 0)
         return M_STACK_STATUS_EXHAUSTED;
@@ -246,7 +246,7 @@ M_Stack_Status m_stack_push_array(struct m_stack *stack, const struct m_array ar
         return M_STACK_STATUS_EXHAUSTED;
 
     usz offset = stack->sp * stack->element_size;
-    m_copy((u8 *)stack->base + offset, array.data, array.width * array.count);
+    m_copy(U8_PTR(stack->base) + offset, array.data, array.width * array.count);
 
     if (stack->sp == stack->cap)
         return M_STACK_STATUS_LAST_ELEMENT;

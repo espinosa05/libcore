@@ -696,6 +696,7 @@ struct linux_sockaddr_in {
     u32 addr;
     u16 port;
 };
+
 #define LINUX_SOCKADDR_SIZE 16
 struct linux_sockaddr {
     u8 pad[LINUX_SOCKADDR_SIZE];

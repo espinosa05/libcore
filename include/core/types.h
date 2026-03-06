@@ -8,10 +8,16 @@
 #include <stdarg.h>
 
 /* legacy type compatibility */
-typedef unsigned char   uchar;
-typedef unsigned short  ushort;
-typedef unsigned int    uint;
-typedef unsigned long   ulong;
+typedef unsigned char       uchar;
+typedef unsigned short      ushort;
+typedef unsigned int        uint;
+typedef unsigned long       ulong;
+typedef unsigned long long  ullong;
+typedef signed char         schar;
+typedef signed short        sshort;
+typedef signed int          sint;
+typedef signed long         slong;
+typedef signed long long    sllong;
 
 /* new types */
 typedef ptrdiff_t   sz;
@@ -31,7 +37,7 @@ typedef int64_t     s64;
 typedef float       f32;
 typedef double      f64;
 
-enum                b32_values { FALSE = 0, TRUE = 1 };
+enum                b32_values { FALSE = 0, TRUE = 1, };
 typedef u32         b32; /* boolean type */
 
 typedef const char  *cstr; /* looks pretty while casting */
@@ -164,9 +170,5 @@ typedef uintmax_t   umax;
 #define U32_REF(u)  &(u32) {(u)}
 #define U64_REF(u)  &(u6) {(u)}
 #define USZ_REF(u)  &(usz) {(u)}
-
-#define DECL_FUNC_PTR(ret, name, ...)  ret (*name) (__VA_ARGS__)
-/* used for type casting */
-#define FUNC_PTR_TYPE(ret, ...) ret (*) (__VA_ARGS__)
 
 #endif /* __TYPES_H__ */

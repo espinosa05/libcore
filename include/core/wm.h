@@ -176,6 +176,13 @@ struct wm_event {
     };
 };
 
+/* mm_array implementation */
+struct wm_events {
+    usz cap;
+    usz count;
+    struct wm_event *data;
+};
+
 void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event *event);
 
 #endif /* __CORE_WM_H__ */

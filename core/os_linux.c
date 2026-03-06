@@ -27,7 +27,7 @@ static void platform_shutdown(void) __FUNC_ATTR_DESTRUCTOR__;
 static void platform_init(void) __FUNC_ATTR_CONSTRUCTOR__;
 static void register_core_signal_handlers(void) __FUNC_ATTR_CONSTRUCTOR__;
 static void core_empty_handler(int sig_num);
-static void set_linux_signal_handler(int sig_num, DECL_FUNC_PTR(void, handler, int));
+static void set_linux_signal_handler(int sig_num, void (*handler) (int));
 
 static OS_File_Status os_file_errno_to_status(usz function, usz errno_val);
 /* static function declaration end */
@@ -87,7 +87,7 @@ void os_library_close(const struct os_library *lib)
     ASSERT_RT(st == 0, "failed to close dynamic library: "STR_FMT, dlerror());
 }
 
-OS_Thread_Status os_thread_spawn(struct os_thread *thr, DECL_FUNC_PTR(void, func, void *), void *arg)
+OS_Thread_Status os_thread_spawn(struct os_thread *thr, void (*func) (void *), void *arg)
 {
     struct linux_clone_args clone_args = {0};
     struct linux_rlimit stack_size = {0};
@@ -522,6 +522,7 @@ void os_dir_cleanup_paths(struct m_array paths)
     for (usz i = 0; i < paths.count; ++i) {
         m_free(m_array_get_addr(&paths, i));
     }
+    m_array_delete(paths);
 }
 
 void os_dir_close(const struct os_dir *dir)
@@ -568,7 +569,7 @@ OS_Socket_Status os_socket_enable_sockopt(const struct os_socket *sock, sz sock_
 
 OS_Socket_Status os_socket_disable_sock_opt(const struct os_socket *sock, sz sock_opt)
 {
-    usz socklen = sizeof(int);
+    const usz socklen = sizeof(int);
     ssz st = linux_setsockopt(sock->handle, SOL_SOCKET, sock_opt, SOCKOPT_DISABLE, socklen);
     return os_socket_errno_code_to_status(SOCK_FN_SETSOCKOPT, USZ(-st));
 }
@@ -941,7 +942,7 @@ static void core_empty_handler(int sig_num)
     ABORT();
 }
 
-static void set_linux_signal_handler(int sig_num, DECL_FUNC_PTR(void, handler, int))
+static void set_linux_signal_handler(int sig_num, void (*handler) (int))
 {
     linux_signal(sig_num, handler);
 }

@@ -1,21 +1,23 @@
+#include <core/utils.h>
+#include <core/macros.h>
 #include <core/memory.h>
-
+#define SIZE 32
 int main(void)
 {
-    usz size = 32;
-    struct m_array array = {0};
-    m_array_init(&array, sizeof(usz), size);
+    struct m_dynamic_array(usz) test_array_1 = {0};
+    struct m_static_array(usz, SIZE) test_array_2 = {0};
 
-    m_array_append(&array, USZ_REF(7));
-    m_array_append(&array, USZ_REF(7));
-    m_array_append(&array, USZ_REF(6));
-    m_array_append(&array, USZ_REF(32));
-    m_array_append(&array, USZ_REF(112));
+    m_dynamic_array_init(&test_array_1, 32);
 
-    for (usz i = 0; i < array.count; ++i) {
-        usz e = *USZ_ARRAY_ELEMENT(&array, i);
-        printf("array["USZ_FMT"] : "USZ_FMT"\n", i, e);
+    for (usz i = 0; i < ARRAY_SIZE(test_array_2.data); ++i) {
+        m_dynamic_array_push(&test_array_1, i);
+        m_static_array_push(&test_array_2, i);
     }
 
-    return OS_EXIT_SUCCESS;
+    for (usz i = 0; i < ARRAY_SIZE(test_array_2.data); ++i) {
+        LOG(STR_SYM(struct m_dynamic_array) "["USZ_FMT"]" STR_TAB "= "  USZ_FMT STR_NL, i, m_dynamic_array_get(&test_array_1,    i));
+        LOG(STR_SYM(struct m_static_array)  "["USZ_FMT"]" STR_TAB "= "  USZ_FMT STR_NL, i, m_static_array_get(&test_array_2,     i));
+    }
+
+    return EXIT_SUCCESS;
 }

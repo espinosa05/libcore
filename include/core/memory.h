@@ -7,6 +7,7 @@
 #include <core/platform.h>
 #include <core/os_lock.h>
 
+
 enum mem_sizes {
     BYTE_SIZE   = 1,
     KB_SIZE     = 1 << 10,
@@ -26,10 +27,12 @@ enum mem_sizes {
 #define PAGES(c) (PAGE_SIZE*c)
 
 #define m_alloc(s, c)       malloc(s*c)
-#define m_free(p)           free(p)
 #define m_realloc(p, s, c)  realloc(p, s*c)
-#define m_set(p, b, c)      memset(p, b, c)
-#define m_copy              memcpy
+
+#define m_free  free
+#define m_set   memset
+#define m_copy  memcpy
+#define m_move  memmove
 
 #define m_zero(p, s)    \
     MACRO_START         \
@@ -44,23 +47,6 @@ struct m_array {
     usz     cap;
     b32     dynamic;
 };
-#define DECL_ARR(type, name) struct m_array name
-#define DECL_ARR_TYPE(type) struct m_array
-#define DECL_FUNC_PTR_ARR(type, name, ...) struct m_array name
-
-#define M_ARRAY(...) (struct m_array) { __VA_ARGS__ }
-#define M_ARRAY_INIT(buff, width, size) (struct m_array) { .data = buff, .width = width, .count = size, .cap = size, }
-#define M_ARRAY_ARG(...) M_ARRAY_INIT(__VA_ARGS__)
-#define M_ARRAY_REF(...) &M_ARRAY(__VA_ARGS__)
-
-#define M_ARRAY_FMT "{ .data = "PTR_FMT", .width = "USZ_FMT", .count = "USZ_FMT", .cap = "USZ_FMT", .dynamic = "B32_FMT" }"
-#define M_ARRAY_FMT_ARG(a) (a).data, (a).width, (a).count, (a).cap, (a).dynamic
-
-#define M_ARRAY_GET_ELEMENT_REF(a, i, ...) (((__VA_ARGS__ *)(a).data) + (i * (a).width))
-#define M_ARRAY_GET_ELEMENT(a, i, ...) *M_ARRAY_GET_ELEMENT_REF(a, i, __VA_ARGS__)
-
-#define GENERIC_ARRAY_ENTRY_REF(a, s, i) ((u8 *)(a) + ((s)*(i)))
-#define GENERIC_ARRAY_ENTRY(a, s, i) *GENERIC_ARRAY_ENTRY_REF(a, s, i)
 
 struct m_array_info {
     void    *base;
@@ -79,6 +65,14 @@ void *m_array_get_addr(const struct m_array *array, usz index);
 void m_array_append(struct m_array *array, void *element);
 void m_array_copy(const struct m_array *src, struct m_array *dst);
 void m_array_delete(struct m_array array);
+
+#define M_ARRAY_FMT "{" STR_NL                      \
+                        STR_TAB PTR_FMT "," STR_NL  \
+                        STR_TAB USZ_FMT "," STR_NL  \
+                        STR_TAB USZ_FMT "," STR_NL  \
+                    "}"
+
+#define M_ARRAY_FMT_ARG(a)  (a).data, (a).count, (a).width
 
 struct m_stack {
     void *base;

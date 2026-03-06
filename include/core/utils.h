@@ -2,9 +2,11 @@
 #define __UTILS_H__
 
 #include <core/platform.h>
-#include <core/log.h>
 #include <core/macros.h>
 #include <core/os_lock.h>
+#include <core/strings.h>
+#include <core/types.h>
+#include <core/log.h>
 
 #ifndef CORE_HEADLESS
 #   include <core/native_ui.h>
@@ -110,5 +112,6 @@
 #   define ASSERT(a, ...) MACRO_START MACRO_END
 #endif /* CORE_RELEASE */
 
+#define DIFF(a, b) ((a) > (b)) ? (a) - (b) : (b) - (a)
 
 #endif /* __UTILS_H__ */
