@@ -1,3 +1,3 @@
 #!/bin/bash
 
-gcc -ggdb thread_test.c ../core/out/libcore.a -o thread_test.c
+gcc -DTT_PRINT -ggdb -I ../include thread_test.c ../core/out/libcore.a -o thread_test

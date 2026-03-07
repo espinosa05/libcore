@@ -1,43 +1,15 @@
 #include <core/types.h>
 #include <core/log.h>
 #include <core/os.h>
+#include <core/os_thread.h>
 #include <core/memory_macros.h>
 #include <core/memory.h>
 
-
-#define INIT_CAP 32
-
-#define MM_QUEUE_MEMBERS(type)  \
-    usz cap;                    \
-    usz l_bounds;               \
-    usz u_bounds;               \
-    type *data
-
 struct usz_queue {
-    MM_QUEUE_MEMBERS(usz);
+    DECL_MM_QUEUE_MEMBERS(usz);
 };
 
-#define mm_queue_init(mm_q, init_cap)                                       \
-    (mm_q)->cap         = init_cap;                                         \
-    (mm_q)->l_bounds    = 0;                                                \
-    (mm_q)->u_bounds    = 0;                                                \
-    (mm_q)->data        = m_alloc(sizeof(*(mm_q)->data), (mm_q)->cap)
-
-#define DIFF(a, b)  ((a) > (b)) ? (a) - (b) : (b) - (a)
-#define mm_queue_length(mm_q) DIFF((mm_q)->l_bounds, (mm_q)->u_bounds)
-
-#define mm_queue_enqueue(mm_q, e)                                                   \
-    if (mm_queue_length(mm_q) + 1> (mm_q)->cap) {                                   \
-        LOG(STR_NL);                                                                \
-        LOG("RESIZING TO "USZ_FMT STR_NL, (mm_q)->cap * 2);                         \
-        LOG(STR_NL);                                                                \
-        (mm_q)->cap *= 2;                                                           \
-        (mm_q)->data = m_realloc((mm_q)->data, sizeof(*(mm_q)->data), (mm_q)->cap); \
-    }                                                                               \
-    (mm_q)->data[(mm_q)->u_bounds++] = e
-
-#define mm_queue_dequeue(mm_q)               \
-    (mm_q)->data[(mm_q)->l_bounds++]
+#define INIT_CAP 32
 
 int main(int argc, char **argv)
 {
@@ -49,20 +21,27 @@ int main(int argc, char **argv)
         mm_queue_enqueue(&queue, i);
     }
 
+    usz e = 0;
     LOG(STR_NL);
-    LOG("<-- D : "USZ_FMT STR_NL, mm_queue_dequeue(&queue));
-    LOG("<-- D : "USZ_FMT STR_NL, mm_queue_dequeue(&queue));
+    mm_queue_dequeue(&queue, &e);
+    LOG("<-- D : "USZ_FMT STR_NL, e);
+    mm_queue_dequeue(&queue, &e);
+    LOG("<-- D : "USZ_FMT STR_NL, e);
 
     LOG(STR_NL);
     LOG("E --> : "USZ_FMT STR_NL, 512);
     mm_queue_enqueue(&queue, 512);
 
     LOG(STR_NL);
-    LOG("<-- D : "USZ_FMT STR_NL, mm_queue_dequeue(&queue));
+
+    mm_queue_dequeue(&queue, &e);
+    LOG("<-- D : "USZ_FMT STR_NL, e);
 
     LOG(STR_NL);
     for (usz i = 0; i < mm_queue_length(&queue); ++i) {
-        LOG("<-- D : "USZ_FMT STR_NL, mm_queue_dequeue(&queue));
+        mm_queue_dequeue(&queue, &e);
+        LOG("<-- D : "USZ_FMT STR_NL, e);
+        os_thread_sleep_msec(100);
     }
 
     return OS_EXIT_SUCCESS;
