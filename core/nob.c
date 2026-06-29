@@ -8,7 +8,8 @@
 #define M4      "m4"
 
 #define CC      "gcc"
-#define CFLAGS  "-I../include", "-ggdb", "-Wall", "-Os", "-std=gnu11", "-Wextra", "-Werror", "-c"
+#define PIPEWIRE_FLAGS "-I/usr/include/pipewire-0.3", "-I/usr/include/spa-0.2", "-D_REENTRANT", "-fno-strict-aliasing", "-fno-strict-overflow"
+#define CFLAGS  "-I../include", "-ggdb", "--std=gnu23", "-Wall", "-Os", "-Wextra", "-Werror", PIPEWIRE_FLAGS, "-c"
 #define LIBNAME "core"
 
 #define AR      "ar"

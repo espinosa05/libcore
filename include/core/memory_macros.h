@@ -56,11 +56,11 @@
     usz count;                  \
     type *data
 
-#define mm_array_init(mm_a, init_cap)                           \
-    MACRO_START                                                 \
-        (mm_a)->cap     = init_cap;                             \
-        (mm_a)->count   = 0;                                    \
-        (mm_a)->data    = m_alloc(sizeof(*(mm_a)->data, cap));  \
+#define mm_array_init(mm_a, init_cap)                                   \
+    MACRO_START                                                         \
+        (mm_a)->cap     = init_cap;                                     \
+        (mm_a)->count   = 0;                                            \
+        (mm_a)->data    = m_alloc(sizeof(*(mm_a)->data), (mm_a)->cap);  \
     MACRO_END
 
 #define mm_array_init_ext(mm_a, buff, buff_cap) \
@@ -70,6 +70,12 @@
         (mm_a)->data = buff;                    \
     MACRO_END
 
+#define mm_array_init_ar(mm_a, arr_cap, ar)                                 \
+    MACRO_START                                                             \
+        (mm_a)->cap = arr_cap;                                              \
+        (mm_a)->count = 0;                                                  \
+        (mm_a)->data = m_arena_alloc((ar), sizeof(*(mm_a)->data), arr_cap); \
+    MACRO_END
 
 #define mm_array_free_space(mm_a)   ((mm_a)->cap - (mm_a)->count)
 #define mm_array_index_oob(mm_a, i) ((mm_a)->cap > i)
@@ -128,7 +134,24 @@
 
 
 #define MM_SPARSE_SET_MEMBERS(type) \
-    usz cap;
+    type *sparse;                   \
+    usz *dense;                     \
+    usz n_indeces;                  \
+    usz n_elements;                 \
+    usz used;
 
+#define mm_sparse_set_init(ss, i, e)                                \
+    MACRO_START                                                     \
+        ASSERT(e <= i, "not enough indeces for element buffer!");   \
+        (ss)->sparse    = m_alloc(sizeof(*(ss)->sparse), e);        \
+        (ss)->dense     = m_alloc(sizeof(*(ss)->dense), i);         \
+    MACRO_END
+
+#define mm_sparse_set_swap(ss, i, j)            \
+    MACRO_START                                 \
+        SWAP((ss)->dense[j], (ss)->dense[i]);   \
+    MACRO_END
+
+#define mm_sparse_set_get(ss, i)    (ss)->dense[(ss)->sparse[i]]
 
 #endif /* __CORE_MEMORY_MACROS_H__ */

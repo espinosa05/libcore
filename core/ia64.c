@@ -49,7 +49,7 @@ usz x64_get_brand_string(char *buff)
         return ARRAY_SIZE(brand_string_char_buff);
 
     struct str_builder brand_string_builder = {0};
-    str_builder_init_ext(&brand_string_builder, brand_string_buff);
+    str_builder_init_buff(&brand_string_builder, brand_string_buff);
 
     for (usz i = 0; i < 3; ++i) {
         str_builder_append(&brand_string_builder, x64_get_brand_string_part(i, &brand_string_buff));

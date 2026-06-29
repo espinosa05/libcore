@@ -14,7 +14,7 @@ struct m_buffer {
 struct m_buffer_info {
     void *buffer;
     usz size;
-    b32 dynamic;
+    b32 external;
 };
 
 enum m_buffer_status_codes {

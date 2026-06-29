@@ -108,6 +108,9 @@ typedef uintmax_t   umax;
 #define S32_N_FMT(n)    "%"#n PRIi32
 #define S64_N_FMT(n)    "%"#n PRIi64
 
+#define F32_FMT         "%f"
+#define F64_FMT         "%lf"
+
 #define TYPE_ARRAY_ELEMENT(a, i, ...) ((__VA_ARGS__ *)(a)) [(i)]
 
 #define SZ_ARRAY_ELEMENT(a, i)      TYPE_ARRAY_ELEMENT(a, i, sz)

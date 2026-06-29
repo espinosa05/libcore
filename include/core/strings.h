@@ -28,10 +28,19 @@ typedef usz Str_Builder_Status;
 
 void str_builder_init(struct str_builder *sb, usz init_cap);
 Str_Builder_Status str_builder_append(struct str_builder *sb, const char *str);
+void str_builder_init_ar(struct str_builder *sb, usz size, struct m_arena *arena);
+void str_builder_init_buff(struct str_builder *sb, struct m_buffer buff);
 void str_builder_to_cstr_alloc(const struct str_builder *sb, char **dst);
 void str_builder_to_cstr_ar(const struct str_builder *sb, char **dst, struct m_arena *arena);
 void str_builder_delete(const struct str_builder sb);
-void str_builder_init_ext(struct str_builder *sb, const struct m_buffer buff);
+
+#define SB_CALL(call)                                                   \
+    MACRO_START                                                         \
+        Str_Builder_Status st = (call);                                 \
+        if (st != STR_BUILDER_STATUS_SUCCESS) {                         \
+            THROW_EXCEPTION("call to '"#call"' failed: "USZ_FMT, st);   \
+        }                                                               \
+    MACRO_END
 
 #define STR_NL  "\n"
 #define STR_TAB "\t"

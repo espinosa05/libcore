@@ -1,6 +1,7 @@
 #ifndef __CORE_OS_LOCK_H__
 #define __CORE_OS_LOCK_H__
 
+#include <core/types.h>
 #include <core/platform.h>
 #include <core/macros.h>
 #include <core/cstd.h>
@@ -16,6 +17,9 @@ struct os_mutex {
 #define os_mutex_lock(lock_p) pthread_mutex_lock(&(lock_p)->pmutex)
 
 #define os_mutex_unlock(lock_p) pthread_mutex_unlock(&(lock_p)->pmutex)
+
+#define os_mutex_try_lock(lock_p) pthread_mutex_trylock(&(lock_p)->pmutex)
+
 #elif defined (CORE_PLATFORM_WINDOWS)
 
 struct os_mutex {
@@ -28,5 +32,8 @@ struct os_mutex {
 #else
 #   error "platform not supported yet!"
 #endif
+
+#define OS_MUTEX_FMT STR_FMT
+#define OS_MUTEX_FMT_ARG(m) os_mutex_try_lock(&m) ? "unlocked" : "locked"
 
 #endif /* __CORE_OS_LOCK_H__ */

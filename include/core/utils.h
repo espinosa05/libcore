@@ -39,15 +39,15 @@
 
 #define ENUM_STR_ENTRY(e) [e] = #e
 
-#define __TMP_ASSERT(a)                                                         \
-    MACRO_START                                                                 \
-        if (UNLIKELY(!(a))) {                                                   \
-            F_LOG_T(OS_STDERR, "TODO", ANSI_COLOR_RED,                          \
-                          "temporary assertion '"#a"' failed!\t");              \
-            F_LOG(OS_STDERR, "make sure to implement proper error handling for this one!!"); \
-            F_LOG(OS_STDERR, "\n");                                             \
-            ABORT();                                                            \
-        }                              \
+#define __TMP_ASSERT(a)                                                                         \
+    MACRO_START                                                                                 \
+        if (UNLIKELY(!(a))) {                                                                   \
+            F_LOG_T(OS_STDERR, "TODO", ANSI_COLOR_RED,                                          \
+                          "temporary assertion '"#a"' failed!\t");                              \
+            F_LOG(OS_STDERR, "make sure to implement proper error handling for this one!!");    \
+            F_LOG(OS_STDERR, "\n");                                                             \
+            ABORT();                                                                            \
+        }                                                                                       \
     MACRO_END
 
 #define THROW_EXCEPTION(...)                                            \
@@ -112,6 +112,9 @@
 #   define ASSERT(a, ...) MACRO_START MACRO_END
 #endif /* CORE_RELEASE */
 
-#define DIFF(a, b) ((a) > (b)) ? (a) - (b) : (b) - (a)
+#define align_up(a, b)  ((a) + (a) % (b))
+#define CORE_MIN(a, b)  ((a) < (b) ? (a) : (b))
+#define CORE_MAX(a, b)  ((a) > (b) ? (a) : (b))
+#define CORE_DIFF(a, b) ((a) > (b)) ? (a) - (b) : (b) - (a)
 
 #endif /* __UTILS_H__ */

@@ -30,7 +30,6 @@ f64 os_time_get_msec(const struct os_time time);
 usz os_time_get_sec(const struct os_time time);
 
 #define OS_TIME(...) (struct os_time) {__VA_ARGS__}
-
 #define os_time_init(t) *(t) = OS_TIME(0)
 
 #define os_exit(code) exit(code)

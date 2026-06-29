@@ -2,8 +2,8 @@
 #define __CORE_WM_H__
 
 #include <core/types.h>
+#include <core/memory_macros.h>
 #include <core/platform.h>
-#include <core/buffer.h>
 
 #if defined(CORE_PLATFORM_LINUX)
 #include <xcb/xcb.h>
@@ -176,11 +176,8 @@ struct wm_event {
     };
 };
 
-/* mm_array implementation */
 struct wm_events {
-    usz cap;
-    usz count;
-    struct wm_event *data;
+    MM_ARRAY_MEMBERS(struct wm_event);
 };
 
 void wm_window_poll_events(struct wm *wm, struct wm_window *win, struct wm_event *event);

@@ -2,6 +2,7 @@
 #include <core/os_dynamic_library.h>
 #include <core/os_streams.h>
 #include <core/os_file.h>
+#include <core/os_path.h>
 #include <core/os_directory.h>
 #include <core/os_socket.h>
 #include <core/os_thread.h>
@@ -260,6 +261,7 @@ enum os_file_functions {
     OS_FILE_FUNC_READ,
     OS_FILE_FUNC_WRITE,
     OS_FILE_FUNC_CLOSE,
+    OS_FILE_FUNC_LSEEK,
 };
 
 static OS_File_Status os_file_errno_to_status(usz function, usz errno_val)
@@ -271,6 +273,7 @@ static OS_File_Status os_file_errno_to_status(usz function, usz errno_val)
     case OS_FILE_FUNC_OPEN:
         switch (errno_val) {
         case EACCES: return OS_FILE_STATUS_PERMISSION_DENIED;
+        case ENOENT: return OS_FILE_STATUS_NO_SUCH_FILE;
         default: UNREACHABLE();
         }
     case OS_FILE_FUNC_CREATE:
@@ -282,6 +285,10 @@ static OS_File_Status os_file_errno_to_status(usz function, usz errno_val)
     case OS_FILE_FUNC_READ:
     case OS_FILE_FUNC_WRITE:
     case OS_FILE_FUNC_CLOSE:
+    case OS_FILE_FUNC_LSEEK:
+        switch (errno_val) {
+        default: UNREACHABLE();
+        }
     default: UNREACHABLE();
     }
 }
@@ -303,6 +310,7 @@ OS_Stream_Status os_stream_write(struct os_stream *stream, void *buffer, const u
 
     return OS_STREAM_STATUS_SUCCESS;
 }
+
 
 OS_Stream_Status os_stream_read_buff(struct os_stream *stream, struct m_buffer *buff, const usz bytes)
 {
@@ -406,12 +414,138 @@ OS_File_Status os_file_write_buff(struct os_file *f, usz bytes, struct m_buffer 
         return OS_FILE_STATUS_SOURCE_NOT_BIG_ENOUGH;
     }
 
-    ssz st = linux_read(f->handle, buff->base, bytes);
+    ssz st = linux_write(f->handle, buff->base, bytes);
     if (LINUX_SYSCALL_FAILURE(st)) {
         return os_file_errno_to_status(OS_FILE_FUNC_READ, USZ(-st));
     }
 
     return OS_FILE_STATUS_SUCCESS;
+}
+
+OS_File_Status os_file_read_le8(struct os_file *f, u8 *buffer)
+{
+    return os_file_read(f, buffer, sizeof(*buffer));
+}
+
+OS_File_Status os_file_read_le16(struct os_file *f, u16 *buffer)
+{
+    usz st = os_file_read(f, buffer, sizeof(*buffer));
+    u8 *bytes = U8_PTR(buffer);
+    SWAP(bytes[0], bytes[1]);
+    return st;
+}
+
+OS_File_Status os_file_read_le32(struct os_file *f, u32 *buffer)
+{
+    usz st = os_file_read(f, buffer, sizeof(*buffer));
+    u8 *bytes = U8_PTR(buffer);
+    SWAP(bytes[0], bytes[3]);
+    SWAP(bytes[1], bytes[2]);
+    return st;
+}
+
+OS_File_Status os_file_read_le64(struct os_file *f, u64 *buffer)
+{
+    usz st = os_file_read(f, buffer, sizeof(*buffer));
+    u8 *bytes = U8_PTR(buffer);
+    SWAP(bytes[0], bytes[7]);
+    SWAP(bytes[1], bytes[6]);
+    SWAP(bytes[2], bytes[5]);
+    SWAP(bytes[3], bytes[4]);
+    return st;
+}
+
+OS_File_Status os_file_write_be8(struct os_file *f, u8 val)
+{
+    return os_file_write(f, &val, sizeof(val));
+}
+
+OS_File_Status os_file_write_be16(struct os_file *f, u16 val)
+{
+    u8 *bytes = U8_PTR(&val);
+    SWAP(bytes[0], bytes[1]);
+    return os_file_write(f, &val, sizeof(val));
+}
+
+OS_File_Status os_file_write_be32(struct os_file *f, u32 val)
+{
+    u8 *bytes = U8_PTR(&val);
+    SWAP(bytes[0], bytes[3]);
+    SWAP(bytes[1], bytes[2]);
+    return os_file_write(f, &val, sizeof(val));
+}
+
+OS_File_Status os_file_write_be64(struct os_file *f, u64 val)
+{
+    u8 *bytes = U8_PTR(&val);
+    SWAP(bytes[0], bytes[7]);
+    SWAP(bytes[1], bytes[6]);
+    SWAP(bytes[2], bytes[5]);
+    SWAP(bytes[3], bytes[4]);
+    return os_file_write(f, &val, sizeof(val));
+}
+
+OS_File_Status os_file_read_be8(struct os_file *f, u8 *buffer)
+{
+    return os_file_read(f, buffer, sizeof(*buffer));
+}
+
+OS_File_Status os_file_read_be16(struct os_file *f, u16 *buffer)
+{
+    return os_file_read(f, buffer, sizeof(*buffer));
+}
+
+OS_File_Status os_file_read_be32(struct os_file *f, u32 *buffer)
+{
+    return os_file_read(f, buffer, sizeof(*buffer));
+}
+
+OS_File_Status os_file_read_be64(struct os_file *f, u64 *buffer)
+{
+    return os_file_read(f, buffer, sizeof(*buffer));
+}
+
+OS_File_Status os_file_write_le8(struct os_file *f, u8 val)
+{
+    return os_file_write(f, &val, sizeof(val));
+}
+
+OS_File_Status os_file_write_le16(struct os_file *f, u16 val)
+{
+    return os_file_write(f, &val, sizeof(val));
+}
+
+OS_File_Status os_file_write_le32(struct os_file *f, u32 val)
+{
+    return os_file_write(f, &val, sizeof(val));
+}
+
+OS_File_Status os_file_write_le64(struct os_file *f, u64 val)
+{
+    return os_file_write(f, &val, sizeof(val));
+}
+
+usz os_file_seek(struct os_file *f, usz n, usz whence, usz *dst)
+{
+    ssz st = linux_lseek(f->handle, n, whence);
+    if (LINUX_SYSCALL_FAILURE(st)) {
+        return os_file_errno_to_status(OS_FILE_FUNC_LSEEK, USZ(-st));
+    }
+
+    if (dst) {
+        *dst = st;
+    }
+
+    return OS_FILE_STATUS_SUCCESS;
+}
+
+usz os_file_get_size(struct os_file *f)
+{
+    usz size = 0;
+    os_file_seek(f, 0, OS_FILE_SEEK_END, &size);
+    os_file_seek(f, 0, OS_FILE_SEEK_SET, NULL);
+
+    return size;
 }
 
 OS_File_Status os_file_printf(const struct os_file *f, const char *fmt, ...)
@@ -430,8 +564,7 @@ OS_File_Status os_file_printf(const struct os_file *f, const char *fmt, ...)
 
 OS_File_Status os_file_close(struct os_file *f)
 {
-    TODO("error handling");
-    sz st = close(f->handle);
+    ssz st = linux_close(f->handle);
 
     if (!LINUX_SYSCALL_SUCCESS(st))
         return os_file_errno_to_status(OS_FILE_FUNC_CLOSE, USZ(-st));
@@ -447,13 +580,37 @@ void os_file_flush(const struct os_file *f)
     UNUSED(f);
 }
 
+static char *g_os_file_status_strs[] = {
+    ENUM_STR_ENTRY(OS_FILE_STATUS_SUCCESS),
+    ENUM_STR_ENTRY(OS_FILE_STATUS_PERMISSION_DENIED),
+    ENUM_STR_ENTRY(OS_FILE_STATUS_NO_SUCH_FILE),
+    ENUM_STR_ENTRY(OS_FILE_STATUS_FILE_EXISTS),
+    ENUM_STR_ENTRY(OS_FILE_STATUS_SOURCE_NOT_BIG_ENOUGH),
+    ENUM_STR_ENTRY(OS_FILE_STATUS_DESTINATION_NOT_BIG_ENOUGH),
+    ENUM_STR_ENTRY(OS_FILE_STATUS_UNKNOWN),
+};
+
+char *os_file_status_str(usz st)
+{
+    if (st > OS_FILE_STATUS_COUNT)
+        st = OS_FILE_STATUS_UNKNOWN;
+
+    return g_os_file_status_strs[st];
+}
+
+b32 os_path_exists(char *path)
+{
+    struct linux_stat path_stat = {0};
+    ssz st = linux_stat(path, &path_stat);
+    return USZ(-st) != ENOENT;
+}
 
 void os_dir_open(struct os_dir *dir, const struct os_dir_info info)
 {
     u32 perm = info.perm | O_DIRECTORY;
     ssz st = linux_open(info.path, perm);
 
-    ASSERT_RT(LINUX_SYSCALL_SUCCESS(st), "failed to open directory!");
+    ASSERT_RT(LINUX_SYSCALL_SUCCESS(st), "failed to open directory! "STR_FMT, linux_errno_cstr(USZ(-st)));
 
     dir->path = info.path;
     dir->handle = st;
@@ -461,33 +618,29 @@ void os_dir_open(struct os_dir *dir, const struct os_dir_info info)
 
 void os_dir_create(struct os_dir *dir, const struct os_dir_info info)
 {
-    u32 perm = info.perm | O_DIRECTORY | O_CREAT;
     u64 mode = S_IRUSR;
-    ssz st = linux_open_mode(info.path, perm, mode);
-
+    ssz st = linux_mkdir(info.path, mode);
     ASSERT_RT(LINUX_SYSCALL_SUCCESS(st), "failed to create directory!");
 
-    dir->handle = st;
+    os_dir_open(dir, info);
 }
 
 #define INIT_PATH_ARRAY_COUNT 16
-
-OS_Dir_Status os_dir_get_file_paths(const struct os_dir *dir, struct m_array *paths)
+#define DONE_READING_DIR_BUFF 0
+OS_Dir_Status os_dir_get_file_paths(const struct os_dir *dir, struct os_paths *paths)
 {
     usz path_cap = os_get_sane_path_length(dir->path);
     OS_Dir_Status ret = OS_DIR_STATUS_SUCCESS;
-    m_array_init(paths, sizeof(char *), INIT_PATH_ARRAY_COUNT);
 
     usz buff_size = sizeof(struct linux_dirent64) + path_cap + NULL_TERM_SIZE;
     struct m_buffer buffer = {0};
-    struct m_buffer_info buffer_info = {
-        .size       = buff_size,
-        .dynamic    = TRUE,
-    };
+    struct m_buffer_info buffer_info = {0};
+    buffer_info.size = buff_size;
     m_buffer_init(&buffer, buffer_info);
 
     struct linux_dirent64 *dir_entry = NULL;
 
+    /* get directory records from Kernel */
     while (TRUE) {
         usz bytes_read = 0;
         ssz st = linux_getdents64(dir->handle, buffer.base, buffer.size);
@@ -498,17 +651,21 @@ OS_Dir_Status os_dir_get_file_paths(const struct os_dir *dir, struct m_array *pa
         }
 
         bytes_read = USZ(st);
-        if (bytes_read == 0) {
-            /* resize and retry */
-            m_buffer_resize(&buffer, buffer.size + KB_SIZE/2);
-            continue;
+        buffer.cursor += bytes_read;
+        if (st == DONE_READING_DIR_BUFF) {
+            break;
         }
 
-        for (usz offset = 0; offset < bytes_read; offset += dir_entry->d_reclen) {
-            dir_entry = LINUX_DIRENT64_REF(U8_PTR(buffer.base) + offset);
-            if (dir_entry->d_type == DT_REG) {
-                m_array_append(paths, cstr_duplicate(dir_entry->d_name));
-            }
+        m_buffer_resize(&buffer, buffer.size + KB_SIZE/2);
+    }
+
+    mm_array_init(paths, INIT_PATH_ARRAY_COUNT);
+
+    /* retreive entries from buffer */
+    for (usz offset = 0; offset < buffer.cursor; offset += dir_entry->d_reclen) {
+        dir_entry = LINUX_DIRENT64_REF(U8_PTR(buffer.base) + offset);
+        if (dir_entry->d_type == DT_REG) {
+            mm_array_append(paths, cstr_duplicate(dir_entry->d_name));
         }
     }
 
@@ -517,12 +674,64 @@ OS_Dir_Status os_dir_get_file_paths(const struct os_dir *dir, struct m_array *pa
     return ret;
 }
 
-void os_dir_cleanup_paths(struct m_array paths)
+OS_Dir_Status os_dir_get_file_paths_ar(const struct os_dir *dir, struct os_paths *paths, struct m_arena *arena)
 {
-    for (usz i = 0; i < paths.count; ++i) {
-        m_free(m_array_get_addr(&paths, i));
+    usz path_cap = os_get_sane_path_length(dir->path);
+    OS_Dir_Status ret = OS_DIR_STATUS_SUCCESS;
+
+    usz buff_size = sizeof(struct linux_dirent64) + path_cap + NULL_TERM_SIZE;
+    struct m_buffer buffer = {0};
+    struct m_buffer_info buffer_info = {0};
+    buffer_info.size = buff_size;
+    m_buffer_init(&buffer, buffer_info);
+
+    struct linux_dirent64 *dir_entry = NULL;
+
+    /* get directory records from Kernel */
+    while (TRUE) {
+        usz bytes_read = 0;
+        ssz st = linux_getdents64(dir->handle, buffer.base, buffer.size);
+        if (LINUX_SYSCALL_FAILURE(st)) {
+            ERROR_LOG("failed to get directory entry : "STR_FMT, linux_errno_cstr(USZ(-st)));
+            ret = OS_DIR_STATUS_FAILURE;
+            break;
+        }
+
+        bytes_read = USZ(st);
+        buffer.cursor += bytes_read;
+        if (st == DONE_READING_DIR_BUFF) {
+            break;
+        }
+
+        m_buffer_resize(&buffer, buffer.size + KB_SIZE/2);
     }
-    m_array_delete(paths);
+
+    /* count entries */
+    usz entry_count = 0;
+    for (usz offset = 0; offset < buffer.cursor; offset += dir_entry->d_reclen) {
+        dir_entry = LINUX_DIRENT64_REF(U8_PTR(buffer.base) + offset);
+        ++entry_count;
+    }
+    mm_array_init_ar(paths, entry_count, arena);
+
+    /* retreive entries from buffer */
+    for (usz offset = 0; offset < buffer.cursor; offset += dir_entry->d_reclen) {
+        dir_entry = LINUX_DIRENT64_REF(U8_PTR(buffer.base) + offset);
+        if (dir_entry->d_type == DT_REG) {
+            mm_array_append(paths, cstr_duplicate(dir_entry->d_name));
+        }
+    }
+
+    return ret;
+}
+
+void os_dir_cleanup_paths(const struct os_paths paths)
+{
+    /* free allocated path strings */
+    for (usz i = 0; i < paths.count; ++i) {
+        m_free(paths.data[i]);
+    }
+    m_free(paths.data);
 }
 
 void os_dir_close(const struct os_dir *dir)
@@ -643,6 +852,7 @@ OS_Socket_Status os_socket_accept(const struct os_socket *server, struct os_sock
         return os_socket_errno_code_to_status(SOCK_FN_ACCEPT, USZ(-st));
 
     client->handle = st;
+
     address->ipv4 = socket_address.addr;
     address->port = socket_address.port;
 
@@ -652,10 +862,9 @@ OS_Socket_Status os_socket_accept(const struct os_socket *server, struct os_sock
 OS_Socket_Status os_socket_connect(const struct os_socket *client, struct os_socket *server, const struct net_address address)
 {
     ssz st = 0;
-    struct linux_sockaddr_in socket_address = {
-        .addr = address.ipv4,
-        .port = address.port,
-    };
+    struct linux_sockaddr_in socket_address = {0};
+    socket_address.addr = address.ipv4;
+    socket_address.port = address.port;
 
     st = linux_connect(client->handle, LINUX_SOCKADDR(&socket_address), sizeof(socket_address));
     server->handle = st;
@@ -874,8 +1083,6 @@ void os_util_strip_file_extension_ar(const char *file_name, char **dst, struct m
 
     *dst = stripped;
 }
-
-
 
 static OS_Stream_Status open_file_stream(struct os_stream *stream, const struct os_file_info info)
 {

@@ -16,7 +16,7 @@ enum mem_sizes {
 };
 
 #define WORD_SIZE sizeof(usz)
-
+#define BITS_IN_BYTE 8
 #ifdef CORE_PLATFORM_COMPILER_GNUC
 #define M_FENCE() asm volatile ("" ::: "memory")
 #else

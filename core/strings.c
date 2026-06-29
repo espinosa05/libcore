@@ -12,18 +12,26 @@ void str_builder_init(struct str_builder *sb, usz init_cap)
     sb->elements    = m_alloc(sizeof(*sb->elements), sb->cap);
 }
 
-void str_builder_init_ext(struct str_builder *sb, const struct m_buffer buff)
+void str_builder_init_buff(struct str_builder *sb, struct m_buffer buff)
 {
     sb->count       = 0;
     sb->cap         = buff.size;
     sb->elements    = buff.base;
+    sb->external    = TRUE;
+}
+
+void str_builder_init_ar(struct str_builder *sb, usz size, struct m_arena *arena)
+{
+    sb->count       = 0;
+    sb->cap         = size;
+    sb->elements    = m_arena_alloc(arena, sizeof(*sb->elements), size);
+    sb->external    = TRUE;
 }
 
 Str_Builder_Status str_builder_append(struct str_builder *sb, const char *cstr)
 {
     ASSERT(sb->count + 1 <= sb->cap, "string builder corrupted!");
 
-    sb->count++;
 
     if (sb->count == sb->cap) {
         if (sb->external) {
@@ -32,7 +40,8 @@ Str_Builder_Status str_builder_append(struct str_builder *sb, const char *cstr)
         sb->cap++;
         sb->elements = m_realloc(sb->elements, sizeof(*sb->elements), sb->cap);
     }
-    sb->elements[sb->count - 1] = (char *)cstr;
+
+    sb->elements[sb->count++] = (char *)cstr;
 
     return STR_BUILDER_STATUS_SUCCESS;
 }
@@ -49,60 +58,48 @@ void str_builder_to_cstr(const struct str_builder *sb, char *dst, usz cap)
 
 void str_builder_to_cstr_alloc(const struct str_builder *sb, char **dst)
 {
-    char *base; /* stores the base address of the buffer */
-    char *cursor; /* keeps track of the elements */
-    usz element_length;
-    usz buff_length;
+    usz buff_length = 0;
 
-    /* create first element */
-    element_length = cstr_length(sb->elements[0]);
-    base = m_alloc(sizeof(*base), element_length + NULL_TERM_SIZE);
-    cursor = base;
-    buff_length = element_length;
-    cstr_copy(cursor, sb->elements[0], element_length);
-    NULL_TERM_BUFF(cursor, element_length);
-
-    for (usz i = 1; i < sb->count; ++i) {
-        /* reallocate the buffer */
-        base = m_realloc(base, sizeof(*sb->elements), buff_length);
-        cstr_copy(cursor, sb->elements[i], element_length);
-        NULL_TERM_BUFF(cursor, element_length);
-        cursor += element_length;
-        buff_length += element_length;
+    for (usz i = 0; i < sb->count; ++i) {
+        buff_length += cstr_length(sb->elements[i]);
     }
+
+    /* stores the base address of the buffer */
+    char *base = m_alloc(sizeof(*base), buff_length + NULL_TERM_SIZE);
+    /* keeps track of the elements */
+    char *cursor = base;
+
+    for (usz i = 0; i < sb->count; ++i) {
+        usz element_length = cstr_length(sb->elements[i]);
+        cstr_copy(cursor, sb->elements[i], element_length);
+        cursor += element_length;
+    }
+
+    NULL_TERM_BUFF(base, buff_length);
 
     *dst = base;
 }
 
 void str_builder_to_cstr_ar(const struct str_builder *sb, char **dst, struct m_arena *arena)
 {
-    char *base; /* stores the base address of the buffer */
-    char *cursor; /* keeps track of the elements */
-    usz element_length;
-    usz buff_length;
+    usz buff_length = 0;
 
-    /* claim arena mutex for consecutive allocations */
-    m_arena_claim(arena);
-
-    /* create first element */
-    element_length = cstr_length(sb->elements[0]);
-    base = m_arena_alloc_claimed(arena, sizeof(*base), element_length + NULL_TERM_SIZE);
-    cursor = base;
-    buff_length = element_length;
-    cstr_copy(cursor, sb->elements[0], element_length);
-    NULL_TERM_BUFF(cursor, element_length);
-
-    for (usz i = 1; i < sb->count; ++i) {
-        /* reallocate the buffer */
-        base = m_arena_alloc_claimed(arena, sizeof(*sb->elements), buff_length);
-
-        cstr_copy(cursor, sb->elements[i], element_length);
-        NULL_TERM_BUFF(cursor, element_length);
-        cursor += element_length;
-        buff_length += element_length;
+    for (usz i = 0; i < sb->count; ++i) {
+        buff_length += cstr_length(sb->elements[i]);
     }
 
-    m_arena_release(arena);
+    /* stores the base address of the buffer */
+    char *base = m_arena_alloc(arena, sizeof(*base), buff_length + NULL_TERM_SIZE);
+    /* keeps track of the elements */
+    char *cursor = base;
+
+    for (usz i = 0; i < sb->count; ++i) {
+        usz element_length = cstr_length(sb->elements[i]);
+        cstr_copy(cursor, sb->elements[i], element_length);
+        cursor += element_length;
+    }
+
+    NULL_TERM_BUFF(base, buff_length);
 
     *dst = base;
 }
